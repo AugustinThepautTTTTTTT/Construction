@@ -1,3 +1,4 @@
+import { aiPolicy } from "@/lib/ai-budget";
 import { NextResponse } from "next/server";
 import { database } from "@/lib/database";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function GET() {
       storage: databaseStatus === "connected" ? "postgresql" : "browser",
       integrations: {
         database: databaseStatus,
-        openai: Boolean(process.env.OPENAI_API_KEY),
+        openai: Boolean(aiPolicy()),
         stripe:
           testKey &&
           Boolean(

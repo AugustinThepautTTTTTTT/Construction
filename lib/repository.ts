@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS roomwise.magic_links(token_hash text PRIMARY KEY,emai
 CREATE TABLE IF NOT EXISTS roomwise.projects(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),title text NOT NULL,brief jsonb NOT NULL,messages jsonb NOT NULL DEFAULT '[]',paid boolean NOT NULL DEFAULT false,preview_used boolean NOT NULL DEFAULT false,updated_at timestamptz NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS roomwise.stripe_events(id text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 500),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 500));
 CREATE TABLE IF NOT EXISTS roomwise.rate_limits(key text PRIMARY KEY, count integer NOT NULL, reset_at timestamptz NOT NULL);
 `;
 type Result = { rows: Record<string, any>[] };

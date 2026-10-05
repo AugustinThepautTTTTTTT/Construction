@@ -1,3 +1,4 @@
+import { aiPolicy } from "@/lib/ai-budget";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { randomBytes } from "node:crypto";
@@ -19,7 +20,7 @@ export async function POST(r: NextRequest) {
     !key ||
     !/^(sk|rk)_test_/.test(key) ||
     !process.env.STRIPE_WEBHOOK_SECRET ||
-    !process.env.OPENAI_API_KEY
+    !aiPolicy()
   )
     return error(
       "Test checkout is not available yet. Your preview remains free.",

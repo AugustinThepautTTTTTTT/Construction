@@ -1,3 +1,4 @@
+import { aiPolicy } from "@/lib/ai-budget";
 import { NextRequest, NextResponse } from "next/server";
 import { databaseConfigured } from "@/lib/database";
 import {
@@ -20,7 +21,7 @@ function capabilities() {
     email: Boolean(
       databaseConfigured() && process.env.SMTP_URL && process.env.EMAIL_FROM,
     ),
-    ai: Boolean(process.env.OPENAI_API_KEY),
+    ai: Boolean(aiPolicy()),
   };
 }
 export async function GET(r: NextRequest) {

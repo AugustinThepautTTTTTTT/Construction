@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { aiPolicy, boundedInput, reserveAiCall } from "@/lib/ai-budget";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { database, rateLimit } from "@/lib/database";
@@ -49,7 +50,8 @@ export async function POST(r: NextRequest) {
     }
     let message: string;
     let kind = "guided_preview";
-    if (!process.env.OPENAI_API_KEY) {
+    const policy = aiPolicy();
+    if (!policy) {
       if (p.previewUsed)
         return error(
           "AI planning is temporarily unavailable. Your saved plan is safe.",
@@ -63,14 +65,22 @@ export async function POST(r: NextRequest) {
       });
       let response;
       try {
+        const instructions =
+          ROOM_PLANNER_PROMPT + `\nRoom brief: ${JSON.stringify(p.brief)}`;
+        const input = boundedInput(
+          instructions,
+          p.messages,
+          parsed.data.message,
+        );
+        if (!(await reserveAiCall(db, policy.limitCents))) {
+          throw new Error("PoC AI budget exhausted");
+        }
         response = await client.responses.create({
-          model: process.env.OPENAI_MODEL || "gpt-5.1",
-          instructions:
-            ROOM_PLANNER_PROMPT + `\nRoom brief: ${JSON.stringify(p.brief)}`,
-          input: [
-            ...p.messages.slice(-22),
-            { role: "user" as const, content: parsed.data.message },
-          ],
+          model: policy.model,
+          instructions,
+          input,
+          reasoning: { effort: "none" },
+          service_tier: "default",
           max_output_tokens: CHAT_LIMITS.maxOutputTokens,
           store: false,
         });

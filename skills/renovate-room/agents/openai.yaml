@@ -1,0 +1,4 @@
+interface:
+  display_name: "Renovate a room"
+  short_description: "Plan safe, scoped room renovations and interiors"
+  default_prompt: "Turn this room brief into a practical design, budget, and schedule."

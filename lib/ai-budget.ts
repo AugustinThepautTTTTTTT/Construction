@@ -1,8 +1,9 @@
 import type { Message } from "./domain";
 import type { Queryable } from "./repository";
 export const LUNA_MODEL = "gpt-6-luna";
-// Conservative reservation: <=65 KiB text + framing, 2,200 output tokens,
-// standard Luna pricing. No tools, no retries, no refunds after ambiguous failures.
+// Conservative reservation per Luna pass: bounded text/history and 4,000 output tokens,
+// standard Luna pricing. No retries or refunds after ambiguous failures.
+// Image edits reserve 50 cents; bounded price research reserves 20 cents.
 // The 5-cent allowance greatly exceeds the documented cost of a bounded call.
 export const AI_CALL_CENTS = 5;
 const MAX_INPUT_BYTES = 65536;
@@ -43,8 +44,18 @@ export function boundedInput(
   if (bytes() > MAX_INPUT_BYTES) throw new Error("Room context is too long.");
   return input;
 }
-export async function reserveAiCall(db: Queryable, limitCents: number) {
-  if (!Number.isSafeInteger(limitCents) || limitCents < AI_CALL_CENTS)
+export async function reserveAiCall(
+  db: Queryable,
+  limitCents: number,
+  reservationCents = AI_CALL_CENTS,
+) {
+  if (
+    !Number.isSafeInteger(reservationCents) ||
+    reservationCents < AI_CALL_CENTS ||
+    reservationCents > 100 ||
+    !Number.isSafeInteger(limitCents) ||
+    limitCents < reservationCents
+  )
     return false;
   const limit = Math.min(limitCents, 500);
   await db.query(
@@ -53,7 +64,7 @@ export async function reserveAiCall(db: Queryable, limitCents: number) {
   );
   const r = await db.query(
     "UPDATE roomwise.ai_budget SET reserved_cents=reserved_cents+$1,limit_cents=LEAST(limit_cents,$2) WHERE id='poc' AND reserved_cents+$1<=LEAST(limit_cents,$2) RETURNING reserved_cents",
-    [AI_CALL_CENTS, limit],
+    [reservationCents, limit],
   );
   return r.rows.length === 1;
 }

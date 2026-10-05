@@ -281,6 +281,27 @@ export default function ChatPage() {
       setProgress("Reviewing your room and request…");
       await readChatStream(response, (event) => {
         if (event.type === "status") setProgress(event.message);
+        if (event.type === "artifact")
+          setProjects((list) =>
+            list.map((room) =>
+              room.id !== p!.id
+                ? room
+                : {
+                    ...room,
+                    messages: room.messages.map((message, i) =>
+                      i === room.messages.length - 1
+                        ? {
+                            ...message,
+                            artifactIds: [
+                              ...(message.artifactIds || []),
+                              event.id,
+                            ],
+                          }
+                        : message,
+                    ),
+                  },
+            ),
+          );
         if (event.type === "paragraph") {
           setProgress("Writing your plan…");
           setProjects((list) =>

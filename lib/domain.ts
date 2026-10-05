@@ -11,6 +11,7 @@ export type Message = {
   role: "user" | "assistant";
   content: string;
   photoIds?: string[];
+  artifactIds?: string[];
   generationId?: string;
   status?: "running" | "complete" | "failed";
   model?: string;

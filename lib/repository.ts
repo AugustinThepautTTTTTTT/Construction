@@ -16,6 +16,8 @@ INSERT INTO roomwise.free_trials(user_id,project_id) SELECT DISTINCT ON (p.user_
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS roomwise.stripe_events(id text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 500),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 500));
+CREATE TABLE IF NOT EXISTS roomwise.artifacts(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),kind text NOT NULL,data jsonb NOT NULL,status text NOT NULL DEFAULT 'ready',model text,image bytea,created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS roomwise_artifacts_project ON roomwise.artifacts(project_id,created_at);
 CREATE TABLE IF NOT EXISTS roomwise.photos(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),data bytea NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS roomwise_photos_project ON roomwise.photos(project_id);
 CREATE TABLE IF NOT EXISTS roomwise.generations(id uuid PRIMARY KEY,project_id uuid NOT NULL REFERENCES roomwise.projects(id),status text NOT NULL DEFAULT 'running',created_at timestamptz NOT NULL DEFAULT now());
@@ -81,6 +83,7 @@ export class ProjectRepository {
     content: string,
     status: "running" | "complete" | "failed",
     usage?: { input_tokens: number; output_tokens: number },
+    artifactIds?: string[],
   ) {
     await this.db.query(
       `UPDATE roomwise.projects SET messages=(SELECT COALESCE(jsonb_agg(CASE WHEN item->>'generationId'=$3 THEN item || $4::jsonb ELSE item END ORDER BY ord), '[]'::jsonb) FROM jsonb_array_elements(messages) WITH ORDINALITY AS t(item,ord)),updated_at=now() WHERE id=$1 AND user_id=$2`,
@@ -88,7 +91,12 @@ export class ProjectRepository {
         id,
         owner,
         generationId,
-        JSON.stringify({ content, status, ...(usage ? { usage } : {}) }),
+        JSON.stringify({
+          content,
+          status,
+          ...(usage ? { usage } : {}),
+          ...(artifactIds ? { artifactIds } : {}),
+        }),
       ],
     );
   }

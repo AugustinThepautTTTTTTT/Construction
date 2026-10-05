@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { RoomArtifact } from "./room-artifact";
 import type { Message } from "@/lib/domain";
 function MessageView({ message }: { message: Message }) {
   return (
@@ -45,6 +46,9 @@ function MessageView({ message }: { message: Message }) {
         ) : (
           <p className="userText">{message.content}</p>
         )}
+        {message.artifactIds?.map((id) => (
+          <RoomArtifact key={id} id={id} />
+        ))}
         {message.status === "failed" && (
           <small className="replyState">
             Reply interrupted. You can send your message again.

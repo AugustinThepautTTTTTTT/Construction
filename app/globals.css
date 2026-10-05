@@ -53,3 +53,31 @@ html{scroll-behavior:smooth;scroll-padding-top:30px}.funnelHero{display:grid;gri
 .photoHelp {margin-top:12px;}
 .replyState {display:block;margin-top:12px;}
 .thinking {font-size:13px;}
+.roomArtifact {border:1px solid #dbe4d3;border-radius:16px;padding:20px;margin:20px 0;background:#fff;overflow:hidden;}
+.artifactTitle {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;}
+.artifactTitle h3 {font-size:17px;line-height:1.4;margin:0;}
+.artifactTitle>span {font-size:9px;letter-spacing:.1em;color:#6b7d60;white-space:nowrap;}
+.floorPlan {width:100%;height:auto;max-height:420px;border-radius:12px;font-family:Arial,sans-serif;}
+.artifactActions {display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:14px 0;}
+.roomArtifact button,.artifactDownload {display:inline-flex;align-items:center;background:#edf3e6;border:1px solid #d3ddc9;border-radius:9px;padding:10px 14px;font-size:12px;cursor:pointer;color:#31462b;text-decoration:none;}
+.roomArtifact button:disabled {opacity:.6;cursor:wait;}
+.artifactHint,.roomArtifact small {font-size:11px;color:#6e7b67;line-height:1.6;}
+.surfaceAssessment {display:grid;gap:10px;margin:18px 0;}
+.surfaceAssessment>div {padding:12px;background:#f7f9f3;border-radius:10px;}
+.surfaceAssessment p {font-size:12px;margin:4px 0;}
+.roomArtifact details {margin:12px 0;font-size:12px;}
+.roomArtifact summary {cursor:pointer;color:#53644a;}
+.materialTable {overflow-x:auto;margin:16px 0;}
+.materialTable table {border-collapse:collapse;width:100%;font-size:12px;min-width:550px;}
+.materialTable th,.materialTable td {padding:12px 9px;text-align:left;vertical-align:top;border-bottom:1px solid #e4eadf;}
+.materialTable small,.materialTable a {display:block;margin-top:4px;}
+.materialTable a {color:#446639;text-decoration:underline;font-size:11px;}
+.estimateTotal {display:block;font-size:15px;}
+.beforeAfter {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0;}
+.beforeAfter figure {margin:0;}
+.beforeAfter img {width:100%;height:auto;display:block;border-radius:10px;}
+.beforeAfter figcaption {font-size:11px;margin-top:8px;color:#63715b;}
+.afterPlaceholder {display:grid;place-items:center;text-align:center;border:1px dashed #cbd8c2;border-radius:10px;padding:25px;background:#f7f9f4;font-size:12px;color:#6c7c62;}
+.artifactNotice {padding:12px;background:#f5f4e9;border-radius:8px;font-size:12px;}
+.doorKey,.windowKey {display:inline-block;width:12px;height:4px;background:#c38a54;vertical-align:middle;margin:0 3px;}.windowKey{background:#63a3ba;}
+@media(max-width:600px){.roomArtifact{padding:14px}.artifactTitle{align-items:flex-start;flex-direction:column}.beforeAfter{grid-template-columns:1fr}.artifactTitle h3{font-size:15px}}

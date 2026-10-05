@@ -29,7 +29,10 @@ export function boundedInput(
   message: string,
 ) {
   const input: Message[] = [
-    ...history.slice(-22),
+    ...history
+      .filter((m) => m.status !== "failed" && m.status !== "running")
+      .slice(-22)
+      .map((m) => ({ role: m.role, content: m.content })),
     { role: "user", content: message },
   ];
   const bytes = () =>

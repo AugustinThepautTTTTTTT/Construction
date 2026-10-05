@@ -16,6 +16,10 @@ INSERT INTO roomwise.free_trials(user_id,project_id) SELECT DISTINCT ON (p.user_
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS roomwise.stripe_events(id text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 500),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 500));
+CREATE TABLE IF NOT EXISTS roomwise.photos(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),data bytea NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS roomwise_photos_project ON roomwise.photos(project_id);
+CREATE TABLE IF NOT EXISTS roomwise.generations(id uuid PRIMARY KEY,project_id uuid NOT NULL REFERENCES roomwise.projects(id),status text NOT NULL DEFAULT 'running',created_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS roomwise_generation_active ON roomwise.generations(project_id) WHERE status='running';
 CREATE TABLE IF NOT EXISTS roomwise.rate_limits(key text PRIMARY KEY, count integer NOT NULL, reset_at timestamptz NOT NULL);
 `;
 type Result = { rows: Record<string, any>[] };
@@ -69,6 +73,24 @@ export class ProjectRepository {
       [JSON.stringify(messages), id, owner],
     );
     return r.rows[0] ? project(r.rows[0]) : null;
+  }
+  async saveReply(
+    owner: string,
+    id: string,
+    generationId: string,
+    content: string,
+    status: "running" | "complete" | "failed",
+    usage?: { input_tokens: number; output_tokens: number },
+  ) {
+    await this.db.query(
+      `UPDATE roomwise.projects SET messages=(SELECT COALESCE(jsonb_agg(CASE WHEN item->>'generationId'=$3 THEN item || $4::jsonb ELSE item END ORDER BY ord), '[]'::jsonb) FROM jsonb_array_elements(messages) WITH ORDINALITY AS t(item,ord)),updated_at=now() WHERE id=$1 AND user_id=$2`,
+      [
+        id,
+        owner,
+        generationId,
+        JSON.stringify({ content, status, ...(usage ? { usage } : {}) }),
+      ],
+    );
   }
   async claimPreview(owner: string, id: string) {
     const r = await this.db.query(

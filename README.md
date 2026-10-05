@@ -56,3 +56,11 @@ Planning requires a registered account. `roomwise.free_trials` records one atomi
 The workspace opens with one prominent prompt, the Roomwise logo and chat history. Room type, dimensions and budget are gathered conversationally. An unused paid room is reused before a new chat is created. Trial limits remain enforced on the server.
 
 `POST /api/billing/confirm` reconciles a completed test checkout directly with Stripe for the authenticated owner, checking customer, owner, project, amount, currency, mode and paid status. The browser return URL never grants access. Previously completed sessions can also be recovered by listing only that user’s stored Stripe customer. Grants are persisted and idempotent; subscriptions are checked against their current provider status. This allows checkout-return recovery while protected previews cannot receive webhooks; ongoing subscription events still need a publicly reachable webhook endpoint.
+
+### Streamed chat and room photos
+
+The planner streams newline-delimited status and paragraph events. Each paragraph is persisted before delivery; replies include generation IDs, model, status and token usage. A database constraint allows one running reply per room. Interrupted replies retain their delivered paragraphs; a stale generation can be retried after two minutes.
+
+Assistant Markdown is rendered as headings, lists, tables and emphasis. Raw HTML and remote embedded images are disabled. Progress labels describe request stages, not private model reasoning. Luna remains the only allowed model, with the existing shared budget and expiry.
+
+Photos: JPG, PNG or WebP, up to three per message, 10 MB each before browser compression, and 12 stored photos per room. The browser resizes to 1280 pixels and under 512 KB per photo; the server independently decodes, validates, normalizes and strips metadata. The whole upload is capped at 2 MB even without Content-Length. Compressed photos are kept in the existing private database and served only to their signed-in owner with no shared cache. Only up to three current or most recent photos are sent to Luna with low image detail. Original camera files and documents are not stored or accepted.

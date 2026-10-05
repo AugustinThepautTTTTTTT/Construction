@@ -7,7 +7,15 @@ export const briefSchema = z.object({
   location: z.string().trim().max(100).default("Not specified"),
 });
 export type Brief = z.infer<typeof briefSchema>;
-export type Message = { role: "user" | "assistant"; content: string };
+export type Message = {
+  role: "user" | "assistant";
+  content: string;
+  photoIds?: string[];
+  generationId?: string;
+  status?: "running" | "complete" | "failed";
+  model?: string;
+  usage?: { input_tokens: number; output_tokens: number };
+};
 export type Project = {
   id: string;
   title: string;

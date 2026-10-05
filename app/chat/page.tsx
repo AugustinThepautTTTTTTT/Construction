@@ -2,6 +2,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
+  Paperclip,
   Check,
   Download,
   Menu,
@@ -11,6 +12,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { briefSchema, type Project } from "@/lib/domain";
+import { ChatMessage } from "@/components/chat-message";
+import { preparePhoto, PHOTO_LIMITS, type DraftPhoto } from "@/lib/photos";
+import { readChatStream } from "@/lib/chat-stream";
 import { api } from "@/lib/browser-storage";
 type Capabilities = {
   ai: boolean;
@@ -35,6 +39,20 @@ export default function ChatPage() {
   const [notice, setNotice] = useState(""),
     [confirming, setConfirming] = useState(false),
     [paywall, setPaywall] = useState(false);
+  const [photos, setPhotos] = useState<DraftPhoto[]>([]),
+    [preparing, setPreparing] = useState(false),
+    [progress, setProgress] = useState("");
+  const photoPicker = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<DraftPhoto[]>([]);
+  useEffect(() => {
+    photoRef.current = photos;
+  }, [photos]);
+  useEffect(
+    () => () => {
+      photoRef.current.forEach((p) => URL.revokeObjectURL(p.preview));
+    },
+    [],
+  );
   const initialized = useRef(false),
     thread = useRef<HTMLDivElement>(null),
     composer = useRef<HTMLTextAreaElement>(null);
@@ -134,11 +152,40 @@ export default function ChatPage() {
       top: thread.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [project?.messages.length, busy]);
+  }, [project?.messages, busy]);
   useEffect(() => {
     if (ready && !busy) composer.current?.focus();
   }, [ready, active, busy]);
+  function clearPhotos() {
+    photos.forEach((p) => URL.revokeObjectURL(p.preview));
+    setPhotos([]);
+  }
+  async function addPhotos(files: FileList | null) {
+    if (!files) return;
+    if (photos.length + files.length > PHOTO_LIMITS.perMessage) {
+      setNotice("Attach up to three room photos per message.");
+      return;
+    }
+    setPreparing(true);
+    setNotice("");
+    const prepared: DraftPhoto[] = [];
+    try {
+      for (const file of Array.from(files))
+        prepared.push(await preparePhoto(file));
+      setPhotos((list) => [...list, ...prepared]);
+    } catch (e) {
+      prepared.forEach((p) => URL.revokeObjectURL(p.preview));
+      setNotice(
+        e instanceof Error ? e.message : "Could not prepare this photo.",
+      );
+    } finally {
+      setPreparing(false);
+      if (photoPicker.current) photoPicker.current.value = "";
+    }
+  }
   function newChat() {
+    if (busy || preparing) return;
+    clearPhotos();
     setActive("");
     setInput("");
     setPaywall(false);
@@ -148,8 +195,10 @@ export default function ChatPage() {
   }
   async function send(e: FormEvent) {
     e.preventDefault();
-    const text = input.trim();
-    if (text.length < 3 || busy || confirming || !cap.user) return;
+    const text =
+      input.trim() ||
+      (photos.length ? "Help me plan improvements to this room." : "");
+    if (!text || busy || preparing || confirming || !cap.user) return;
     setBusy(true);
     setNotice("");
     setPaywall(false);
@@ -180,14 +229,46 @@ export default function ChatPage() {
         setPaywall(true);
         return;
       }
-      const data = await api("/api/chat", { projectId: p!.id, message: text });
+      const missing = photos.filter((photo) => !photo.id);
+      if (missing.length) {
+        setProgress("Uploading your room photos…");
+        const form = new FormData();
+        form.append("projectId", p!.id);
+        missing.forEach((photo) => form.append("photos", photo.file));
+        const uploaded = await fetch("/api/photos", {
+          method: "POST",
+          body: form,
+        });
+        const data = await uploaded.json();
+        if (!uploaded.ok)
+          throw new Error(data.error || "Could not upload photos.");
+        missing.forEach((photo, i) => {
+          photo.id = data.photoIds[i];
+        });
+        setPhotos([...photos]);
+      }
+      const photoIds = photos.map((photo) => photo.id!);
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: p!.id, message: text, photoIds }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Could not start your reply.");
+      }
+
       const updated = {
         ...p!,
         title: p!.messages.length ? p!.title : text.slice(0, 60),
         messages: [
           ...p!.messages,
-          { role: "user" as const, content: text },
-          { role: "assistant" as const, content: data.message },
+          { role: "user" as const, content: text, photoIds },
+          {
+            role: "assistant" as const,
+            content: "",
+            status: "running" as const,
+          },
         ],
         previewUsed: true,
       };
@@ -196,7 +277,28 @@ export default function ChatPage() {
         ...list.filter((x) => x.id !== updated.id),
       ]);
       setInput("");
-      setCap(await api("/api/session"));
+      clearPhotos();
+      setProgress("Reviewing your room and request…");
+      await readChatStream(response, (event) => {
+        if (event.type === "status") setProgress(event.message);
+        if (event.type === "paragraph") {
+          setProgress("Writing your plan…");
+          setProjects((list) =>
+            list.map((room) =>
+              room.id !== p!.id
+                ? room
+                : {
+                    ...room,
+                    messages: room.messages.map((message, i) =>
+                      i === room.messages.length - 1
+                        ? { ...message, content: message.content + event.text }
+                        : message,
+                    ),
+                  },
+            ),
+          );
+        }
+      });
     } catch (e) {
       setNotice(
         e instanceof Error
@@ -204,7 +306,11 @@ export default function ChatPage() {
           : "Could not send your message. Please retry.",
       );
     } finally {
+      try {
+        await refresh();
+      } catch {}
       setBusy(false);
+      setProgress("");
     }
   }
   async function checkPayment() {
@@ -278,7 +384,7 @@ export default function ChatPage() {
             ? "Describe your idea. We’ll work out the details together…"
             : "Message Roomwise…"
         }
-        disabled={!ready || busy || confirming}
+        disabled={!ready || busy || preparing || confirming}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
@@ -286,12 +392,53 @@ export default function ChatPage() {
           }
         }}
       />
+      {!!photos.length && (
+        <div className="draftPhotos">
+          {photos.map((photo, i) => (
+            <div key={photo.preview}>
+              <img src={photo.preview} alt={photo.name} />
+              <button
+                type="button"
+                aria-label={`Remove ${photo.name}`}
+                disabled={busy || preparing}
+                onClick={() => {
+                  URL.revokeObjectURL(photo.preview);
+                  setPhotos((list) => list.filter((_, j) => i !== j));
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <input
+        ref={photoPicker}
+        className="visuallyHidden"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        onChange={(e) => void addPhotos(e.target.files)}
+        disabled={busy || preparing}
+      />
       <div className="chatComposerTools">
+        <button
+          className="attachPhoto"
+          type="button"
+          aria-label="Attach room photos"
+          title="Up to 3 JPG, PNG or WebP photos · 10 MB each · 12 per room"
+          disabled={!ready || busy || preparing || photos.length >= 3}
+          onClick={() => photoPicker.current?.click()}
+        >
+          <Paperclip size={19} />
+        </button>
         <span>
-          {confirming ? (
+          {preparing ? (
+            "Preparing your photos…"
+          ) : confirming ? (
             "Confirming your payment…"
           ) : busy ? (
-            "Thinking…"
+            progress || "Preparing your reply…"
           ) : unlocked ? (
             <>
               <Check size={13} /> Room Pass active
@@ -303,7 +450,13 @@ export default function ChatPage() {
         <button
           type="submit"
           aria-label="Send message"
-          disabled={!ready || busy || confirming || input.trim().length < 3}
+          disabled={
+            !ready ||
+            busy ||
+            preparing ||
+            confirming ||
+            (!input.trim() && !photos.length)
+          }
         >
           <ArrowUp size={20} />
         </button>
@@ -323,7 +476,11 @@ export default function ChatPage() {
         <Link href="/" className="brand">
           <span className="brandMark">R</span>roomwise
         </Link>
-        <button className="newChatButton" onClick={newChat}>
+        <button
+          className="newChatButton"
+          onClick={newChat}
+          disabled={busy || preparing}
+        >
           <Plus size={17} /> New chat
         </button>
         <p className="sideLabel">CHAT HISTORY</p>
@@ -334,7 +491,9 @@ export default function ChatPage() {
               <button
                 key={p.id}
                 className={p.id === active ? "active" : ""}
+                disabled={busy || preparing}
                 onClick={() => {
+                  clearPhotos();
                   setActive(p.id);
                   setInput("");
                   setNotice("");
@@ -407,6 +566,10 @@ export default function ChatPage() {
             </h1>
             <p>From a first idea to a room that feels like you.</p>
             {inputBox}
+            <small className="photoHelp">
+              Attach room photos · JPG, PNG or WebP · Up to 3 per message, 10 MB
+              each
+            </small>
             {project && !unlocked && (
               <button
                 className="checkPaymentLink"
@@ -421,21 +584,14 @@ export default function ChatPage() {
           <>
             <div className="thread" ref={thread}>
               {project?.messages.map((m, i) => (
-                <article className={`message ${m.role}`} key={i}>
-                  <span>{m.role === "user" ? "You" : "Roomwise"}</span>
-                  <div>
-                    {m.content.split("\n").map((line, j) => (
-                      <p key={j}>{line || <br />}</p>
-                    ))}
-                  </div>
-                </article>
+                <ChatMessage key={i} message={m} />
               ))}
               {busy && (
-                <div className="thinking">
+                <div className="thinking" role="status" aria-live="polite">
                   <i />
                   <i />
                   <i />
-                  Thinking…
+                  {progress || "Preparing your reply…"}
                 </div>
               )}
             </div>

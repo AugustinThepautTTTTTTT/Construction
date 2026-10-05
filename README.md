@@ -32,3 +32,9 @@ The optional FastAPI service in `backend/` exposes `/v1/plan` and `/health` for 
 ## Guardrails
 
 Inputs are schema-limited to 24 messages and 4,000 characters per message; output is capped at 2,200 tokens; the API applies a basic per-instance rate limit and a system-level prompt-injection boundary. Production should add authenticated, durable rate limits (for example, Upstash), Stripe webhook entitlement checks, file scanning, moderation, audit logs, and spend alerts before public launch.
+
+## Configured deployment
+
+The `construction` Vercel project in `tests-projects-e44ed118` uses the Hobby plan, Next.js, Node 22, and `npm ci`. Deploy the `work` branch and promote its verified preview to production.
+
+The project has `NEXT_PUBLIC_APP_URL`, `OPENAI_MODEL`, and Stripe test Price IDs configured for the $5 Room Pass and $50/month Pro plan. The connected Stripe account is test mode only. Checkout remains unavailable until a test `STRIPE_SECRET_KEY` is securely added; AI planning and account persistence also require their OpenAI and Supabase keys. A successful `/api/health` response reports which integrations are configured, rather than implying that all integrations are active.

@@ -49,3 +49,10 @@ Cloud activation still needs a deployment that Stripe can reach. Vercel Authenti
 Room Pass ($5 once) and Pro ($50/month) lead to `/purchase?plan=single|pro`. Visitors register or sign in before Stripe checkout; a project is saved without consuming the free test. The existing 30-day secure session keeps signed-in users connected. The landing header switches between Sign in and My workspace.
 
 Planning requires a registered account. `roomwise.free_trials` records one atomic starter claim per account across projects and devices; existing registered starter users are backfilled. Failed AI calls release that claim. The legacy anonymous preview endpoint is retired. This is one per account/email, not identity verification of a physical person; email recovery/verification still requires SMTP. Decorative landing motion respects reduced-motion preferences.
+
+
+### Chat-first workspace and payment recovery
+
+The workspace opens with one prominent prompt, the Roomwise logo and chat history. Room type, dimensions and budget are gathered conversationally. An unused paid room is reused before a new chat is created. Trial limits remain enforced on the server.
+
+`POST /api/billing/confirm` reconciles a completed test checkout directly with Stripe for the authenticated owner, checking customer, owner, project, amount, currency, mode and paid status. The browser return URL never grants access. Previously completed sessions can also be recovered by listing only that user’s stored Stripe customer. Grants are persisted and idempotent; subscriptions are checked against their current provider status. This allows checkout-return recovery while protected previews cannot receive webhooks; ongoing subscription events still need a publicly reachable webhook endpoint.

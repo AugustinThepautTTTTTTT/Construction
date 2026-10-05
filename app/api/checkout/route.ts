@@ -85,7 +85,7 @@ export async function POST(r: NextRequest) {
             },
           }
         : {}),
-      success_url: `${r.nextUrl.origin}/chat?project=${p.id}&checkout=success`,
+      success_url: `${r.nextUrl.origin}/chat?project=${p.id}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${r.nextUrl.origin}/chat?project=${p.id}&checkout=cancelled`,
       integration_identifier: `roomwise_${tag}`,
     });

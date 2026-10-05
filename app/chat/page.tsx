@@ -1,545 +1,469 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft,
   ArrowUp,
-  ArrowRight,
   Check,
   Download,
   Menu,
   Plus,
-  Sparkles,
-  Cloud,
-  HardDrive,
-  LockKeyhole,
+  Settings,
+  X,
 } from "lucide-react";
 import Link from "next/link";
-import {
-  briefSchema,
-  type Project,
-  type Brief,
-} from "@/lib/domain";
-import { api, writeProjects } from "@/lib/browser-storage";
+import { briefSchema, type Project } from "@/lib/domain";
+import { api } from "@/lib/browser-storage";
 type Capabilities = {
-  storage: "local" | "cloud";
-  checkout: boolean;
-  email: boolean;
   ai: boolean;
-  user: { id: string; email: string | null; pro_active: boolean; free_trial_used: boolean } | null;
+  checkout: boolean;
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    pro_active: boolean;
+    free_trial_used: boolean;
+  } | null;
 };
-const initial: Capabilities = {
-  storage: "local",
-  checkout: false,
-  email: false,
-  ai: false,
-  user: null,
-};
+const initial: Capabilities = { ai: false, checkout: false, user: null };
 export default function ChatPage() {
-  const [cap, setCap] = useState(initial);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [active, setActive] = useState("");
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [sidebar, setSidebar] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [checkoutBusy, setCheckoutBusy] = useState(false);
-  const [room, setRoom] = useState("Kitchen");
-  const [goal, setGoal] = useState("");
-  const [budget, setBudget] = useState("");
-  const initialized = useRef(false);
-  const thread = useRef<HTMLDivElement>(null);
-  const project = projects.find((p) => p.id === active);
-  const unlocked = Boolean(
-    cap.user?.pro_active || (project?.paid && project.storage === "cloud"),
-  );
-  const cacheKey = cap.user
-    ? `roomwise:cloud-cache:${cap.user.id}`
-    : "roomwise:local-projects";
-  function persist(next: Project[], key = cacheKey) {
-    setProjects(next);
-    try {
-      writeProjects(next, key);
-    } catch {
-      setNotice(
-        "Browser saving is unavailable. Download your plan before closing this page.",
-      );
-    }
-  }
-  async function create(brief: Brief, config = cap, list = projects) {
-    if (!config.user?.email) {
-      window.location.assign("/account?next=%2Fchat");
-      return;
-    }
-    try {
-      let p: Project = (await api("/api/projects", brief)).project;
-      const next = [p, ...list.filter((x) => x.id !== p.id)];
-      persist(next, `roomwise:cloud-cache:${config.user.id}`);
-      setActive(p.id);
-      setSidebar(false);
-      window.history.replaceState(null, "", `/chat?project=${p.id}`);
-      if (config.user.pro_active || !config.user.free_trial_used) {
-        try {
-          const preview = await api("/api/chat", {
-            projectId: p.id, message: `Create a starter plan for this room: ${brief.goal}`,
-          });
-          p = {...p, messages: [{role: "user", content: brief.goal}, {role: "assistant", content: preview.message}], previewUsed: true};
-          persist([p, ...list.filter((x) => x.id !== p.id)], `roomwise:cloud-cache:${config.user.id}`);
-          setCap(await api("/api/session"));
-        } catch (e) { setNotice(e instanceof Error ? e.message : "The planner is unavailable."); }
-      } else setNotice("Your free test has been used. Choose a Room Pass or Pro to plan this room.");
-    } catch (e) { setNotice(e instanceof Error ? e.message : "Could not save this room. Please try again."); }
+  const [cap, setCap] = useState(initial),
+    [projects, setProjects] = useState<Project[]>([]),
+    [active, setActive] = useState("");
+  const [input, setInput] = useState(""),
+    [ready, setReady] = useState(false),
+    [busy, setBusy] = useState(false),
+    [sidebar, setSidebar] = useState(false);
+  const [notice, setNotice] = useState(""),
+    [confirming, setConfirming] = useState(false),
+    [paywall, setPaywall] = useState(false);
+  const initialized = useRef(false),
+    thread = useRef<HTMLDivElement>(null),
+    composer = useRef<HTMLTextAreaElement>(null);
+  const project = projects.find((p) => p.id === active),
+    empty = !project?.messages.length;
+  const unlocked = Boolean(cap.user?.pro_active || project?.paid);
+  async function refresh() {
+    const [session, data] = await Promise.all([
+      api("/api/session"),
+      api("/api/projects"),
+    ]);
+    setCap(session);
+    setProjects(data.projects);
+    return data.projects as Project[];
   }
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    let disposed = false;
     void (async () => {
-      let config = initial;
-      let list: Project[] = [];
       try {
-        config = await api("/api/session");
-        if (!config.user?.email) {
-          window.location.replace(`/account?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        const session = await api("/api/session");
+        if (!session.user?.email) {
+          window.location.replace(
+            `/account?next=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+          );
           return;
         }
-        setCap(config);
-        if (config.storage === "cloud" && config.user) {
-          list = (await api("/api/projects")).projects;
-
+        if (disposed) return;
+        setCap(session);
+        let list: Project[] = (await api("/api/projects")).projects;
+        const q = new URLSearchParams(window.location.search);
+        const selected =
+          q.get("project") ||
+          list.find((p) => p.paid && !p.messages.length)?.id ||
+          list.find((p) => !p.messages.length)?.id ||
+          "";
+        if (disposed) return;
+        setProjects(list);
+        setActive(selected);
+        setReady(true);
+        let draft: unknown;
+        try {
+          draft = JSON.parse(localStorage.getItem("roomwise:brief") || "null");
+        } catch {}
+        const brief = briefSchema.safeParse(draft);
+        if (q.get("new") === "1" && brief.success) {
+          setInput(brief.data.goal);
+          localStorage.removeItem("roomwise:brief");
+        }
+        if (q.get("checkout") === "cancelled")
+          setNotice("Checkout cancelled. Your chat is saved.");
+        const chosen = list.find((p) => p.id === selected);
+        if (chosen && !chosen.paid && !session.user.pro_active) {
+          setConfirming(true);
+          try {
+            const result = await api("/api/billing/confirm", {
+              projectId: chosen.id,
+              ...(q.get("session_id")
+                ? { sessionId: q.get("session_id") }
+                : {}),
+            });
+            if (result.confirmed) {
+              list = await refresh();
+              window.history.replaceState(
+                null,
+                "",
+                `/chat?project=${chosen.id}`,
+              );
+            } else if (q.get("checkout") === "success")
+              setNotice(
+                "Payment confirmation is pending. Use Check payment below; you do not need to pay again.",
+              );
+          } catch (e) {
+            if (q.get("checkout") === "success")
+              setNotice(
+                e instanceof Error ? e.message : "Could not check payment.",
+              );
+          } finally {
+            if (!disposed) setConfirming(false);
+          }
         }
       } catch {
-        setNotice(
-          "Your account could not be loaded. Please refresh to try again.",
-        );
+        if (!disposed) {
+          setNotice("Could not open your workspace. Refresh to try again.");
+          setReady(true);
+        }
       }
-      setProjects(list);
-      const query = new URLSearchParams(window.location.search);
-      const selected = query.get("project");
-      setActive(
-        selected && list.some((p) => p.id === selected)
-          ? selected
-          : list[0]?.id || "",
-      );
-      if (query.get("checkout") === "success")
-        setNotice(
-          "Checking payment confirmation. Access updates only after Stripe confirms the payment.",
-        );
-      if (query.get("checkout") === "cancelled")
-        setNotice("Checkout cancelled. Your preview is still here.");
-      let draft: unknown;
-      try {
-        draft = JSON.parse(localStorage.getItem("roomwise:brief") || "null");
-      } catch {}
-      const parsed = briefSchema.safeParse(draft);
-      if (parsed.success && query.get("new") === "1") {
-        await create(parsed.data, config, list);
-        localStorage.removeItem("roomwise:brief");
-      }
-      setReady(true);
     })();
+    return () => {
+      disposed = true;
+      initialized.current = false;
+    };
   }, []);
   useEffect(() => {
     thread.current?.scrollTo({
       top: thread.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [project?.messages.length, loading]);
-  // Poll only while a verified webhook is expected; the return URL never grants access.
+  }, [project?.messages.length, busy]);
   useEffect(() => {
-    if (
-      !ready ||
-      !cap.user ||
-      new URLSearchParams(window.location.search).get("checkout") !== "success"
-    )
-      return;
-    let attempts = 0;
-    const timer = setInterval(() => {
-      void (async () => {
-        attempts++;
-        try {
-          const config = await api("/api/session");
-          setCap(config);
-          const list = (await api("/api/projects")).projects;
-          setProjects(list);
-          const selected = list.find((p: Project) => p.id === active);
-          if (config.user?.pro_active || selected?.paid) {
-            setNotice("Payment confirmed. Your room is unlocked.");
-            clearInterval(timer);
-            window.history.replaceState(null, "", `/chat?project=${active}`);
-          }
-        } catch {}
-        if (attempts >= 10) {
-          clearInterval(timer);
-          setNotice(
-            "Payment confirmation is still pending. Reopen this workspace shortly.",
-          );
-        }
-      })();
-    }, 3000);
-    return () => clearInterval(timer);
-  }, [ready, cap.user?.id, active]);
-  async function start(e: FormEvent) {
-    e.preventDefault();
-    const parsed = briefSchema.safeParse({
-      room,
-      goal,
-      budget: budget || "Not set",
-      size: "Not measured",
-      location: "Not specified",
-    });
-    if (!parsed.success) {
-      setNotice("Tell us your main goal in a few words.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await create(parsed.data);
-      setGoal("");
-    } finally {
-      setLoading(false);
-    }
-  }
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!project || !input.trim() || loading) return;
-    if (!unlocked) {
-      setNotice(
-        "Your free starter plan is ready. Follow-up AI planning becomes available with an unlocked cloud room.",
-      );
-      return;
-    }
-    const clean = input.trim();
-    setLoading(true);
+    if (ready && !busy) composer.current?.focus();
+  }, [ready, active, busy]);
+  function newChat() {
+    setActive("");
+    setInput("");
+    setPaywall(false);
     setNotice("");
+    setSidebar(false);
+    window.history.replaceState(null, "", "/chat");
+  }
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (text.length < 3 || busy || confirming || !cap.user) return;
+    setBusy(true);
+    setNotice("");
+    setPaywall(false);
+    let p = project;
     try {
-      const data = await api("/api/chat", {
-        projectId: project.id,
-        message: clean,
-      });
+      if (!p) {
+        // Use an unused paid Room Pass before creating a fresh conversation.
+        p = projects.find((x) => x.paid && !x.messages.length);
+        if (!p)
+          p = (
+            await api("/api/projects", {
+              room: "Other",
+              goal: text.slice(0, 2000),
+              budget: "Not set",
+              size: "Not measured",
+              location: "Not specified",
+            })
+          ).project;
+        setActive(p!.id);
+        setProjects((list) => [p!, ...list.filter((x) => x.id !== p!.id)]);
+        window.history.replaceState(null, "", `/chat?project=${p!.id}`);
+      }
+      const canSend =
+        cap.user.pro_active ||
+        p!.paid ||
+        (!cap.user.free_trial_used && !p!.previewUsed);
+      if (!canSend) {
+        setPaywall(true);
+        return;
+      }
+      const data = await api("/api/chat", { projectId: p!.id, message: text });
       const updated = {
-        ...project,
+        ...p!,
+        title: p!.messages.length ? p!.title : text.slice(0, 60),
         messages: [
-          ...project.messages,
-          { role: "user" as const, content: clean },
+          ...p!.messages,
+          { role: "user" as const, content: text },
           { role: "assistant" as const, content: data.message },
         ],
-        updated_at: new Date().toISOString(),
+        previewUsed: true,
       };
-      persist(projects.map((p) => (p.id === updated.id ? updated : p)));
+      setProjects((list) => [
+        updated,
+        ...list.filter((x) => x.id !== updated.id),
+      ]);
       setInput("");
+      setCap(await api("/api/session"));
     } catch (e) {
       setNotice(
-        e instanceof Error ? e.message : "Could not continue the plan.",
+        e instanceof Error
+          ? e.message
+          : "Could not send your message. Please retry.",
       );
     } finally {
-      setLoading(false);
+      setBusy(false);
+    }
+  }
+  async function checkPayment() {
+    if (!project || confirming) return;
+    setConfirming(true);
+    setNotice("");
+    try {
+      const result = await api("/api/billing/confirm", {
+        projectId: project.id,
+      });
+      await refresh();
+      if (result.confirmed) {
+        setPaywall(false);
+        window.history.replaceState(null, "", `/chat?project=${project.id}`);
+      } else
+        setNotice(
+          "No completed payment found for this chat yet. You can try again shortly.",
+        );
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not verify payment.");
+    } finally {
+      setConfirming(false);
     }
   }
   async function checkout(plan: "single" | "pro") {
-    if (!project || !cap.checkout || !cap.ai) {
-      setNotice(
-        "Test checkout is not available yet. Keep exploring your free preview.",
-      );
-      return;
-    }
-    if (!cap.user?.email) {
-      window.location.assign(
-        `/account?next=${encodeURIComponent(`/chat?project=${project.id}`)}`,
-      );
-      return;
-    }
-    setCheckoutBusy(true);
+    if (!project) return;
+    setBusy(true);
+    setNotice("");
     try {
-      let id = project.id;
-      const cloud = (await api("/api/projects")).projects;
-      if (!cloud.some((p: Project) => p.id === id)) {
-        const saved = await api("/api/projects", project.brief);
-        id = saved.project.id;
-        persist(projects.map((p) => (p.id === project.id ? saved.project : p)));
-        setActive(id);
-      }
-      const data = await api("/api/checkout", { plan, projectId: id });
+      const data = await api("/api/checkout", { plan, projectId: project.id });
       window.location.assign(data.url);
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Checkout is unavailable.");
-      setCheckoutBusy(false);
+      setNotice(e instanceof Error ? e.message : "Could not open checkout.");
+      setBusy(false);
     }
   }
   function download() {
     if (!project) return;
-    const body = `${project.title}\n\n${project.messages.map((m) => `${m.role === "assistant" ? "Roomwise" : "You"}\n${m.content}`).join("\n\n")}\n\nEstimates and assumptions require checking with local professionals.`;
-    const url = URL.createObjectURL(
-      new Blob([body], { type: "text/plain;charset=utf-8" }),
+    const blob = new Blob(
+      [
+        project.messages
+          .map((m) => `${m.role === "user" ? "You" : "Roomwise"}\n${m.content}`)
+          .join("\n\n"),
+      ],
+      { type: "text/plain;charset=utf-8" },
     );
-    const a = document.createElement("a");
+    const url = URL.createObjectURL(blob),
+      a = document.createElement("a");
     a.href = url;
-    a.download = `roomwise-${project.brief.room.toLowerCase()}.txt`;
+    a.download = "roomwise-plan.txt";
     a.click();
     URL.revokeObjectURL(url);
   }
-  return (
-    <main className="workspace">
-      <aside className={sidebar ? "side open" : "side"}>
-        <div className="sideHead">
-          <Link href="/" className="brand">
-            <span className="brandMark">R</span> roomwise
-          </Link>
-          <button
-            onClick={() => {
-              setActive("");
-              setSidebar(false);
-              setNotice("");
-            }}
-            aria-label="New room"
-          >
-            <Plus />
-          </button>
-        </div>
-        <p className="sideLabel">YOUR ROOMS</p>
-        <div className="projectList">
-          {projects.map((p) => (
-            <button
-              className={p.id === active ? "active" : ""}
-              key={p.id}
-              onClick={() => {
-                setActive(p.id);
-                setSidebar(false);
-                setNotice("");
-              }}
-            >
-              <span>{p.title}</span>
-              <small>
-                {p.paid && p.storage === "cloud"
-                  ? "Unlocked room"
-                  : p.storage === "cloud"
-                    ? "Cloud starter preview"
-                    : "Browser starter preview"}
-              </small>
-            </button>
-          ))}
-        </div>
-        <div className="storageLabel">
-          {cap.storage === "cloud" ? (
-            <Cloud size={15} />
+  const inputBox = (
+    <form
+      className={`chatComposer ${empty ? "heroComposer" : ""}`}
+      onSubmit={send}
+    >
+      <label className="visuallyHidden" htmlFor="chat-prompt">
+        Message Roomwise
+      </label>
+      <textarea
+        ref={composer}
+        id="chat-prompt"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        maxLength={4000}
+        rows={empty ? 3 : 2}
+        placeholder={
+          empty
+            ? "Describe your idea. We’ll work out the details together…"
+            : "Message Roomwise…"
+        }
+        disabled={!ready || busy || confirming}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            e.currentTarget.form?.requestSubmit();
+          }
+        }}
+      />
+      <div className="chatComposerTools">
+        <span>
+          {confirming ? (
+            "Confirming your payment…"
+          ) : busy ? (
+            "Thinking…"
+          ) : unlocked ? (
+            <>
+              <Check size={13} /> Room Pass active
+            </>
           ) : (
-            <HardDrive size={15} />
+            "Your ideas, one conversation away."
           )}
-          <span>
-            {cap.storage === "cloud"
-              ? "Cloud saving connected"
-              : "Saved on this browser"}
-          </span>
+        </span>
+        <button
+          type="submit"
+          aria-label="Send message"
+          disabled={!ready || busy || confirming || input.trim().length < 3}
+        >
+          <ArrowUp size={20} />
+        </button>
+      </div>
+    </form>
+  );
+  return (
+    <main className="workspace cleanWorkspace">
+      {sidebar && (
+        <button
+          className="historyBackdrop"
+          aria-label="Close chat history"
+          onClick={() => setSidebar(false)}
+        />
+      )}
+      <aside className={sidebar ? "side open" : "side"}>
+        <Link href="/" className="brand">
+          <span className="brandMark">R</span>roomwise
+        </Link>
+        <button className="newChatButton" onClick={newChat}>
+          <Plus size={17} /> New chat
+        </button>
+        <p className="sideLabel">CHAT HISTORY</p>
+        <div className="projectList">
+          {projects
+            .filter((p) => p.messages.length || p.paid || p.id === active)
+            .map((p) => (
+              <button
+                key={p.id}
+                className={p.id === active ? "active" : ""}
+                onClick={() => {
+                  setActive(p.id);
+                  setInput("");
+                  setNotice("");
+                  setPaywall(false);
+                  setSidebar(false);
+                  window.history.replaceState(
+                    null,
+                    "",
+                    `/chat?project=${p.id}`,
+                  );
+                }}
+              >
+                <span>
+                  {p.messages
+                    .find((m) => m.role === "user")
+                    ?.content.slice(0, 60) ||
+                    (p.paid ? "Your new room" : "New chat")}
+                </span>
+              </button>
+            ))}
         </div>
-        <Link href="/account" className="account">
-          <div className="avatar">Y</div>
-          <div>
-            <b>{cap.user?.email || "Your workspace"}</b>
-            <small>
-              {cap.user?.email
-                ? "Account & billing"
-                : "Create account or sign in"}
-            </small>
-          </div>
+        <Link className="account cleanAccount" href="/account">
+          <Settings size={17} />
+          <span>My account</span>
+          <small>{cap.user?.pro_active ? "Pro" : ""}</small>
         </Link>
       </aside>
       <section className="chatArea">
         <header className="chatHead">
           <button
             className="menu"
+            aria-label="Open chat history"
             onClick={() => setSidebar(!sidebar)}
-            aria-label="Open room list"
           >
-            <Menu />
+            <Menu size={18} />
           </button>
-          <div>
-            <b>{project?.title || "Your next room"}</b>
-            <span>
-              {unlocked ? (
-                <>
-                  <i /> Unlocked room
-                </>
-              ) : cap.ai ? (
-                "Starter preview · AI connected"
-              ) : (
-                "Guided starter preview"
-              )}
-            </span>
-          </div>
+          <span className="chatHeaderTitle">
+            {empty
+              ? "Roomwise"
+              : project?.messages
+                  .find((m) => m.role === "user")
+                  ?.content.slice(0, 55) || "Your chat"}
+          </span>
           <div className="workspaceActions">
-            {project && (
-              <button onClick={download} aria-label="Download text plan">
+            {!empty && (
+              <button onClick={download} aria-label="Download plan">
                 <Download size={16} />
               </button>
             )}
-            <Link href="/" aria-label="Back to home">
-              <ArrowLeft size={16} />
-            </Link>
+            <button onClick={newChat} aria-label="New chat">
+              <Plus size={17} />
+            </button>
           </div>
         </header>
         {notice && (
-          <div className="workspaceNotice" role="status">
-            {notice}
+          <div className="cleanNotice" role="status">
+            <span>{notice}</span>
+            <button aria-label="Dismiss message" onClick={() => setNotice("")}>
+              <X size={15} />
+            </button>
           </div>
         )}
-        <div className="thread" ref={thread}>
-          {!ready ? (
-            <p className="briefNote">Opening your workspace…</p>
-          ) : !project ? (
-            <div className="welcome">
-              <div className="agentOrb">
-                <Sparkles />
-              </div>
-              <p className="kicker">YOUR WORKSPACE</p>
-              <h1>
-                One room.
-                <br />
-                <em>One clearer next step.</em>
-              </h1>
-              <p>
-                Describe the room and what you want to improve. One free test is included per account. Choose a Room Pass or Pro to continue.
-              </p>
-              <form className="workspaceBrief" onSubmit={start}>
-                <label>
-                  Room
-                  <select
-                    value={room}
-                    onChange={(e) => setRoom(e.target.value)}
-                  >
-                    {[
-                      "Kitchen",
-                      "Bathroom",
-                      "Living room",
-                      "Bedroom",
-                      "Other",
-                    ].map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Budget & currency
-                  <input
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    maxLength={100}
-                    placeholder="e.g. €5,000"
-                  />
-                </label>
-                <label className="full">
-                  Main goal
-                  <textarea
-                    value={goal}
-                    onChange={(e) => setGoal(e.target.value)}
-                    required
-                    minLength={3}
-                    maxLength={2000}
-                    placeholder="More storage, keep the floor, avoid major work…"
-                  />
-                </label>
-                <button className="primary wide full" disabled={loading}>
-                  {cap.user?.pro_active ? "Create my room plan" : cap.user?.free_trial_used ? "Create a room" : "Use my free test"} <ArrowRight size={16} />
-                </button>
-              </form>
-            </div>
-          ) : project.messages.length === 0 ? (
-            <p>
-              Your room is saved. Choose a Room Pass below to start planning, or upgrade to Pro.
-            </p>
-          ) : (
-            project.messages.map((m, i) => (
-              <div className={`message ${m.role}`} key={i}>
-                <span>{m.role === "assistant" ? "Roomwise" : "You"}</span>
-                <div>
-                  {m.content.split("\n").map((line, j) => (
-                    <p key={j}>{line || <br />}</p>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-          {loading && (
-            <div className="thinking">
-              <i />
-              <i />
-              <i /> Preparing your plan
-            </div>
-          )}
-        </div>
-        {project && !unlocked && (
-          <div className="unlockCard">
-            <div>
-              <LockKeyhole size={18} />
-              <span>
-                <b>{project.messages.length ? "Your starter plan is ready." : "Ready to plan this room?"}</b>
-                <small>
-                  {cap.checkout && cap.ai
-                    ? "Continue this room with a test Room Pass."
-                    : "Test checkout is not available yet. Download your preview to keep it."}
-                </small>
-              </span>
-            </div>
-            <button
-              className="primary"
-              disabled={!cap.checkout || !cap.ai || checkoutBusy}
-              onClick={() => checkout("single")}
-            >
-              {checkoutBusy ? "Opening…" : "Unlock room · $5"}
-              <ArrowRight size={15} />
-            </button>
-            {cap.checkout && cap.ai && (
+        {empty ? (
+          <div className="chatWelcome">
+            <span className="brandMark welcomeLogo">R</span>
+            <h1>
+              What will you
+              <br />
+              <em>create today?</em>
+            </h1>
+            <p>From a first idea to a room that feels like you.</p>
+            {inputBox}
+            {project && !unlocked && (
               <button
-                className="proLink"
-                onClick={() => checkout("pro")}
-                disabled={checkoutBusy}
+                className="checkPaymentLink"
+                disabled={confirming}
+                onClick={() => void checkPayment()}
               >
-                Multiple rooms? Pro · $50/month
+                Already paid? Check payment
               </button>
             )}
           </div>
-        )}
-        {project && (
-          <form className="composer" onSubmit={submit}>
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              maxLength={4000}
-              placeholder={
-                unlocked
-                  ? "What would you like to refine?"
-                  : "Your starter preview is ready. Unlock a room for follow-up planning."
-              }
-              disabled={!unlocked}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  e.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <div>
-              <span className="composerHint">
-                {unlocked ? (
-                  <>
-                    <Check size={13} /> Private room conversation
-                  </>
-                ) : (
-                  "Free preview · no card required"
-                )}
-              </span>
-              <small>{input.length}/4,000</small>
-              <button
-                className="send"
-                aria-label="Send"
-                disabled={!unlocked || !input.trim() || loading}
-              >
-                <ArrowUp />
-              </button>
+        ) : (
+          <>
+            <div className="thread" ref={thread}>
+              {project?.messages.map((m, i) => (
+                <article className={`message ${m.role}`} key={i}>
+                  <span>{m.role === "user" ? "You" : "Roomwise"}</span>
+                  <div>
+                    {m.content.split("\n").map((line, j) => (
+                      <p key={j}>{line || <br />}</p>
+                    ))}
+                  </div>
+                </article>
+              ))}
+              {busy && (
+                <div className="thinking">
+                  <i />
+                  <i />
+                  <i />
+                  Thinking…
+                </div>
+              )}
             </div>
-          </form>
+            {inputBox}
+          </>
+        )}
+        {paywall && (
+          <div className="chatUpgrade" role="status">
+            <span>
+              Your free test is used. Continue this chat with a Room Pass.
+            </span>
+            <button onClick={() => void checkout("single")} disabled={busy}>
+              Room Pass · $5
+            </button>
+            <button onClick={() => void checkout("pro")} disabled={busy}>
+              Pro · $50/month
+            </button>
+            <button
+              onClick={() => void checkPayment()}
+              disabled={busy || confirming}
+            >
+              Check payment
+            </button>
+          </div>
         )}
         <p className="disclaimer">
-          Plans are guidance. Verify measurements, costs and regulated work with
-          qualified local professionals.
+          Roomwise can make mistakes. Check important details before starting
+          work.
         </p>
       </section>
     </main>

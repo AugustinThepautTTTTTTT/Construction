@@ -10,7 +10,7 @@ export async function GET(r: NextRequest) {
     const user = await identity(r);
     const db = await database();
     if (!db) return error("Cloud saving is not available yet.");
-    if (!user) return error("Please open a workspace first.", 401);
+    if (!user?.email) return error("Create an account or sign in first.", 401);
     const id = r.nextUrl.searchParams.get("id");
     if (id) {
       if (!z.string().uuid().safeParse(id).success)
@@ -35,7 +35,7 @@ export async function POST(r: NextRequest) {
     const user = await identity(r);
     const db = await database();
     if (!db) return error("Cloud saving is not available yet.");
-    if (!user) return error("Please open a workspace first.", 401);
+    if (!user?.email) return error("Create an account or sign in first.", 401);
     if (!(await rateLimit(`project:${user.id}`, 20, 3600)))
       return error("Please wait before creating more rooms.", 429);
     return NextResponse.json({

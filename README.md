@@ -42,3 +42,10 @@ This only controls Roomwise traffic through this code. It cannot restrict other 
 Checkout requires a signed-in account. The server validates each test price and associates a Stripe customer with the account. Signed webhooks validate the paid amount, currency, mode, project owner, and customer before granting access. Subscription lifecycle events reconcile against current Stripe status. `/api/billing/portal` creates a portal session only for the signed-in user's stored customer; it never accepts a client-supplied customer ID. Set `STRIPE_PORTAL_CONFIGURATION_ID` to the configured test portal with invoice history, payment-method updates, and cancellation at the billing period end.
 
 Cloud activation still needs a deployment that Stripe can reach. Vercel Authentication currently protects the preview; it prevents public registration and Stripe webhook delivery. Removing that protection requires the deployment owner's approval/configuration. Email recovery still requires `SMTP_URL` and `EMAIL_FROM`; account registration and password login do not.
+
+
+### Purchase-led account funnel
+
+Room Pass ($5 once) and Pro ($50/month) lead to `/purchase?plan=single|pro`. Visitors register or sign in before Stripe checkout; a project is saved without consuming the free test. The existing 30-day secure session keeps signed-in users connected. The landing header switches between Sign in and My workspace.
+
+Planning requires a registered account. `roomwise.free_trials` records one atomic starter claim per account across projects and devices; existing registered starter users are backfilled. Failed AI calls release that claim. The legacy anonymous preview endpoint is retired. This is one per account/email, not identity verification of a physical person; email recovery/verification still requires SMTP. Decorative landing motion respects reduced-motion preferences.

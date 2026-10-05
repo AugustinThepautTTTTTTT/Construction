@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS roomwise.password_resets(token_hash text PRIMARY KEY,
 CREATE TABLE IF NOT EXISTS roomwise.sessions(token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES roomwise.users(id), expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.magic_links(token_hash text PRIMARY KEY,email text NOT NULL,guest_id uuid REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.projects(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),title text NOT NULL,brief jsonb NOT NULL,messages jsonb NOT NULL DEFAULT '[]',paid boolean NOT NULL DEFAULT false,preview_used boolean NOT NULL DEFAULT false,updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS roomwise.free_trials(user_id uuid PRIMARY KEY REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),created_at timestamptz NOT NULL DEFAULT now());
+INSERT INTO roomwise.free_trials(user_id,project_id) SELECT DISTINCT ON (p.user_id) p.user_id,p.id FROM roomwise.projects p JOIN roomwise.users u ON u.id=p.user_id WHERE p.preview_used=true AND p.paid=false AND u.email IS NOT NULL ORDER BY p.user_id,p.updated_at ON CONFLICT DO NOTHING;
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS roomwise.stripe_events(id text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 500),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 500));
@@ -70,8 +72,13 @@ export class ProjectRepository {
   }
   async claimPreview(owner: string, id: string) {
     const r = await this.db.query(
-      "UPDATE roomwise.projects SET preview_used=true WHERE id=$1 AND user_id=$2 AND preview_used=false RETURNING id",
-      [id, owner],
+      `WITH claim AS (
+        INSERT INTO roomwise.free_trials(user_id,project_id)
+        SELECT u.id,p.id FROM roomwise.users u JOIN roomwise.projects p ON p.user_id=u.id
+        WHERE u.id=$1 AND p.id=$2 AND u.email IS NOT NULL AND p.preview_used=false
+        ON CONFLICT DO NOTHING RETURNING project_id
+      ) UPDATE roomwise.projects SET preview_used=true WHERE id IN (SELECT project_id FROM claim) RETURNING id`,
+      [owner, id],
     );
     return r.rows.length > 0;
   }

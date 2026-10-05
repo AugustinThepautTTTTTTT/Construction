@@ -19,16 +19,17 @@ export async function POST(r: NextRequest) {
   try {
     const user = await identity(r);
     const db = await database();
-    if (!db || !user)
+    if (!db || !user?.email)
       return error(
-        "Cloud planning is not available yet. You can still use the free starter preview.",
+        "Create an account or sign in before using the planner.",
+        401,
       );
     const repo = new ProjectRepository(db);
     const p = await repo.get(user.id, parsed.data.projectId);
     if (!p) return error("Project not found.", 404);
-    if (!user.pro_active && !p.paid && p.previewUsed)
+    if (!user.pro_active && !p.paid && (p.previewUsed || user.free_trial_used))
       return error(
-        "Your free preview is ready. Unlock this room to continue.",
+        "Your account’s free test has been used. Choose a Room Pass or Pro to continue.",
         402,
       );
     if (
@@ -44,7 +45,7 @@ export async function POST(r: NextRequest) {
       const claim = await repo.claimPreview(user.id, p.id);
       if (!claim)
         return error(
-          "Your free preview is already being prepared or is ready.",
+          "Your account’s free test is already being prepared or has been used.",
           402,
         );
     }
@@ -87,7 +88,8 @@ export async function POST(r: NextRequest) {
       } catch (e) {
         if (!user.pro_active && !p.paid)
           await db.query(
-            "UPDATE roomwise.projects SET preview_used=false WHERE id=$1 AND user_id=$2",
+            `WITH released AS (DELETE FROM roomwise.free_trials WHERE project_id=$1 AND user_id=$2 RETURNING project_id)
+             UPDATE roomwise.projects SET preview_used=false WHERE id IN (SELECT project_id FROM released)`,
             [p.id, user.id],
           );
         throw e;

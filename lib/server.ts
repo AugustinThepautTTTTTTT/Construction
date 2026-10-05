@@ -25,7 +25,7 @@ export async function identity(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!db || !token || !/^[a-f0-9]{64}$/.test(token)) return null;
   const r = await db.query(
-    "SELECT u.id,u.email,u.name,u.email_verified,u.pro_active FROM roomwise.sessions s JOIN roomwise.users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    "SELECT u.id,u.email,u.name,u.email_verified,u.pro_active,EXISTS(SELECT 1 FROM roomwise.free_trials t WHERE t.user_id=u.id) AS free_trial_used FROM roomwise.sessions s JOIN roomwise.users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [digest(token)],
   );
   return r.rows[0] || null;

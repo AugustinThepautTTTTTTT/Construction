@@ -83,7 +83,7 @@ test("replayed webhook grants access once and cannot grant a foreign project", a
   assert.equal((await repo.get(owner, p.id))!.paid, true);
   await db.close();
 });
-test("only one concurrent request can consume a free room preview", async () => {
+test("one free trial per registered account across rooms, devices and concurrent requests", async () => {
   const db = new PGlite();
   await db.exec(repository.SCHEMA);
   const repo = new repository.ProjectRepository({
@@ -102,6 +102,9 @@ test("only one concurrent request can consume a free room preview", async () => 
     "function",
     "free preview must be claimed atomically",
   );
+  assert.equal(await repo.claimPreview(owner, p.id), false, "anonymous accounts cannot claim a trial");
+  await db.query("UPDATE roomwise.users SET email='trial@example.com' WHERE id=$1", [owner]);
+  const second = await repo.create(owner, p.brief);
   assert.deepEqual(
     await Promise.all([
       repo.claimPreview(owner, p.id),
@@ -109,6 +112,9 @@ test("only one concurrent request can consume a free room preview", async () => 
     ]),
     [true, false],
   );
+  assert.equal(await repo.claimPreview(owner, second.id), false, "new rooms do not reset trial");
+  await db.exec(repository.SCHEMA);
+  assert.equal(await repo.claimPreview(owner, second.id), false, "migration/reload does not reset trial");
   assert.equal(await repo.claimPreview(other, p.id), false);
   await db.close();
 });

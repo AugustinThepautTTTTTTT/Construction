@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Accordion } from "@base-ui-components/react";
 import {
@@ -13,11 +13,12 @@ import {
   MoveRight,
 } from "lucide-react";
 import Link from "next/link";
+import { api } from "@/lib/browser-storage";
 import { briefSchema } from "@/lib/domain";
 const faqs = [
   [
     "What is free?",
-    "Start with a short room brief and receive a guided starter plan. No card or account is required for the browser preview. You can decide whether to unlock a saved room afterwards.",
+    "Start with a short room brief and receive a guided starter plan. Create an account to use one free starter test. The limit follows your account across rooms and devices. Room Pass and Pro are available directly without taking the test first.",
   ],
   [
     "What does the $5 Room Pass include?",
@@ -37,11 +38,23 @@ const faqs = [
   ],
   [
     "Where is my plan saved?",
-    "The starter workspace keeps a copy in this browser. When cloud saving is connected, your projects and conversations are stored privately and can be recovered through email sign-in.",
+    "The starter workspace keeps a copy in this browser. When cloud saving is connected, your projects and conversations are stored privately and can be recovered by signing in to your account.",
   ],
 ];
 export default function Home() {
   const router = useRouter();
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const refresh = () => void api("/api/session").then((s) => { if (live) setSignedIn(Boolean(s.user?.email)); }).catch(() => {});
+    refresh();
+    window.addEventListener("focus", refresh);
+    const reveal = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add("revealed"); reveal.unobserve(entry.target); } });
+    }, {threshold: 0.12});
+    document.querySelectorAll(".salesFunnel .section, .salesFunnel .sampleSection").forEach((el) => { el.classList.add("reveal"); reveal.observe(el); });
+    return () => { live = false; window.removeEventListener("focus", refresh); reveal.disconnect(); };
+  }, []);
   const [room, setRoom] = useState("Kitchen");
   const [goal, setGoal] = useState("");
   const [budget, setBudget] = useState("");
@@ -63,13 +76,13 @@ export default function Home() {
     }
     try {
       localStorage.setItem("roomwise:brief", JSON.stringify(result.data));
-      router.push("/chat?new=1");
+      router.push(signedIn ? "/chat?new=1" : "/account?next=%2Fchat%3Fnew%3D1");
     } catch {
       setError("Enable browser storage to keep your free plan.");
     }
   }
   return (
-    <main>
+    <main className="salesFunnel">
       <header className="nav wrap">
         <Link href="/" className="brand">
           <span className="brandMark">R</span> roomwise
@@ -79,14 +92,14 @@ export default function Home() {
           <a href="#sample">See a sample</a>
           <a href="#pricing">Pricing</a>
         </nav>
-        <Link className="navCta" href="/chat">
-          My workspace <ArrowRight size={15} />
+        <Link className="navCta" href={signedIn ? "/chat" : "/account?mode=login"}>
+          {signedIn ? "My workspace" : "Sign in"} <ArrowRight size={15} />
         </Link>
       </header>
       <section className="funnelHero wrap">
         <div className="heroWords">
           <div className="eyebrow">
-            <Sparkles size={14} /> A clearer first step for your renovation
+            <Sparkles size={14} /> YOUR NEXT ROOM STARTS HERE
           </div>
           <h1>
             Know what
@@ -96,26 +109,235 @@ export default function Home() {
             <em>Before you spend.</em>
           </h1>
           <p className="heroCopy">
-            Turn a vague room idea into priorities, budget questions and a
-            practical work sequence. Start with a free preview, then decide what
-            comes next.
+            You have the vision. Get the plan to move it forward: what to keep, where to spend, and what to do first. One room from $5. A whole-home mindset with Pro.
           </p>
+          <div className="heroActions">
+            <Link className="primary" href="/purchase?plan=single">Plan my room · $5 <ArrowRight size={17}/></Link>
+            <Link className="secondary" href="/purchase?plan=pro">Go Pro · $50/month <ArrowRight size={17}/></Link>
+          </div>
           <div className="heroTrust">
             <span>
-              <Check size={15} /> No card to preview
+              <Check size={15} /> One-time Room Pass
             </span>
             <span>
-              <Check size={15} /> No design experience needed
+              <Check size={15} /> Secure Stripe checkout
             </span>
           </div>
           <a className="textLink" href="#sample">
             See what a starter plan looks like <MoveRight size={16} />
           </a>
         </div>
+        <div className="heroScene" aria-label="Illustrative interior and sample planning priorities">
+          <div className="heroScenePhoto roomAfter"/>
+          <div className="sceneLabel"><Sparkles size={14}/> YOUR IDEA. A CLEARER DIRECTION.</div>
+          <div className="floatingPlan"><span className="kicker">EXAMPLE ROOM PRIORITIES</span><h3>Keep what works.<br/><em>Make space for better.</em></h3>
+            <div><Check size={16}/> Smarter storage</div><div><Check size={16}/> Warmer lighting</div><div><Check size={16}/> A practical work sequence</div>
+          </div>
+          <div className="scenePrice"><b>$5</b><span>One room.<br/>One clear next step.</span></div>
+          <span className="sceneCaption">Illustrative photo · sample priorities</span>
+        </div>
+      </section>
+      <section id="sample" className="sampleSection wrap">
+        <div className="sampleRoom">
+          <div className="room roomAfter">
+            <span>Illustrative interior photo</span>
+          </div>
+          <p>A direction to discuss—not a promised before-and-after.</p>
+        </div>
+        <article className="samplePlan">
+          <p className="kicker">SAMPLE OUTPUT · NOT A QUOTE</p>
+          <h2>
+            A warmer kitchen.
+            <br />
+            <em>Less disruption.</em>
+          </h2>
+          <div className="sampleMeta">
+            <span>12 m²</span>
+            <span>€5,000 target</span>
+            <span>Keep existing services</span>
+          </div>
+          <ol>
+            <li>
+              <b>Keep the costly foundations</b>
+              <p>
+                Assess cabinet condition and retain plumbing locations where
+                practical.
+              </p>
+            </li>
+            <li>
+              <b>Put storage and lighting first</b>
+              <p>
+                Measure circulation, identify unused space and compare finish
+                samples.
+              </p>
+            </li>
+            <li>
+              <b>Price the work before committing</b>
+              <p>
+                Split materials and labour; obtain local quotes and keep a
+                contingency.
+              </p>
+            </li>
+          </ol>
+          <div className="sampleAssumption">
+            <ShieldCheck size={18} />
+            <span>
+              Assumption: no structural work. Costs and site conditions require
+              checking.
+            </span>
+          </div>
+        </article>
+      </section>
+      <section id="how" className="how wrap section">
+        <div>
+          <p className="kicker">FROM IDEA TO ACTION</p>
+          <h2>
+            Less guessing.
+            <br />
+            <em>More direction.</em>
+          </h2>
+        </div>
+        <div className="steps">
+          <article>
+            <b>01</b>
+            <h3>Choose your plan</h3>
+            <p>
+              Pick a $5 Room Pass for one room or $50/month Pro for multiple projects.
+            </p>
+          </article>
+          <article>
+            <b>02</b>
+            <h3>Create your account & pay</h3>
+            <p>
+              Keep your rooms together with one login. Continue straight to secure Stripe test checkout.
+            </p>
+          </article>
+          <article>
+            <b>03</b>
+            <h3>Make your next move</h3>
+            <p>
+              Describe your goals in your workspace. Build priorities, ask follow-up questions, and download your plan.
+            </p>
+          </article>
+        </div>
+      </section>
+      <section className="outcomes section">
+        <div className="wrap">
+          <p className="kicker">BUILT AROUND THE DECISIONS THAT MATTER</p>
+          <h2>
+            Spend with a plan.
+            <br />
+            <em>Not a guess.</em>
+          </h2>
+          <div className="outcomeGrid">
+            {[
+              {
+                Icon: Layers3,
+                title: "A practical scope",
+                text: "Separate essential changes from nice-to-haves and keep useful existing finishes.",
+              },
+              {
+                Icon: Wallet,
+                title: "Budget priorities",
+                text: "Make your budget explicit and identify what needs a quote before buying.",
+              },
+              {
+                Icon: ShieldCheck,
+                title: "Clear assumptions",
+                text: "See where measurements, local prices and professional advice are still needed.",
+              },
+            ].map(({ Icon, title, text }) => (
+              <article key={title}>
+                <Icon />
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section id="pricing" className="pricing wrap section">
+        <div className="priceIntro">
+          <p className="kicker">YOUR ROOM. YOUR NEXT MOVE.</p>
+          <h2>
+            One room.
+            <br />
+            <em>A simple next step.</em>
+          </h2>
+          <p>
+            Choose the plan that matches your project. Create your account, complete Stripe checkout, and get to work. This PoC uses test payments only.
+          </p>
+          <a className="textLink" href="#brief">
+            Prefer a test? One free plan per account <ArrowRight size={16} />
+          </a>
+        </div>
+        <article className="priceCard featured">
+          <span className="plan">ROOM PASS · ONE-TIME</span>
+          <div className="amount">
+            <sup>$</sup>5
+          </div>
+          <p>For one room you want to think through properly.</p>
+          <ul>
+            <li>
+              <Check />
+              One saved room conversation
+            </li>
+            <li>
+              <Check />
+              Follow-up planning
+            </li>
+            <li>
+              <Check />
+              Scope, priorities and sequence
+            </li>
+            <li>
+              <Check />
+              Download your text plan
+            </li>
+          </ul>
+          <Link className="primary wide" href="/purchase?plan=single">
+            Get my Room Pass · $5 <ArrowRight size={16} />
+          </Link>
+          <small className="priceFootnote">No recurring subscription.</small>
+        </article>
+        <article className="priceCard">
+          <span className="plan">PRO · FOR MULTIPLE ROOMS</span>
+          <div className="amount">
+            <sup>$</sup>50<small>/mo</small>
+          </div>
+          <p>For ongoing planning across several projects.</p>
+          <ul>
+            <li>
+              <Check />
+              Multiple saved rooms
+            </li>
+            <li>
+              <Check />
+              Continue planning across projects
+            </li>
+            <li>
+              <Check />
+              Your personal cloud workspace
+            </li>
+            <li>
+              <Check />
+              Text plan downloads
+            </li>
+          </ul>
+          <Link className="primary wide" href="/purchase?plan=pro">
+            Get Pro · $50/month <ArrowRight size={16} />
+          </Link>
+          <small className="priceFootnote">
+            Test subscription. No real charge in this PoC.
+          </small>
+        </article>
+      </section>
+      <section className="trialSection wrap section">
+        <div><p className="kicker">A LITTLE CONFIDENCE BEFORE YOU COMMIT</p><h2>Try one room.<br/><em>See your next move.</em></h2><p>One free starter test with your account. Your email keeps your workspace connected and your test stays with you across devices.</p><p className="briefNote">No card for the test. One test per account.</p></div>
         <form id="brief" className="briefCard" onSubmit={begin}>
           <div className="briefTop">
             <span className="stepBadge">01 / YOUR ROOM</span>
-            <span className="freeBadge">Free preview</span>
+            <span className="freeBadge">One free account test</span>
           </div>
           <h2>
             What would make
@@ -174,7 +396,7 @@ export default function Home() {
             </label>
           </div>
           <button className="primary wide" type="submit">
-            Get my free starter plan <ArrowRight size={17} />
+            {signedIn ? "Use my account’s free test" : "Create account & try free"} <ArrowRight size={17} />
           </button>
           {error && (
             <p className="formError" role="alert">
@@ -185,204 +407,6 @@ export default function Home() {
             A useful starting point. Estimates labelled. You stay in control.
           </p>
         </form>
-      </section>
-      <section id="sample" className="sampleSection wrap">
-        <div className="sampleRoom">
-          <div className="room roomAfter">
-            <span>Illustrative interior photo</span>
-          </div>
-          <p>A direction to discuss—not a promised before-and-after.</p>
-        </div>
-        <article className="samplePlan">
-          <p className="kicker">SAMPLE OUTPUT · NOT A QUOTE</p>
-          <h2>
-            A warmer kitchen.
-            <br />
-            <em>Less disruption.</em>
-          </h2>
-          <div className="sampleMeta">
-            <span>12 m²</span>
-            <span>€5,000 target</span>
-            <span>Keep existing services</span>
-          </div>
-          <ol>
-            <li>
-              <b>Keep the costly foundations</b>
-              <p>
-                Assess cabinet condition and retain plumbing locations where
-                practical.
-              </p>
-            </li>
-            <li>
-              <b>Put storage and lighting first</b>
-              <p>
-                Measure circulation, identify unused space and compare finish
-                samples.
-              </p>
-            </li>
-            <li>
-              <b>Price the work before committing</b>
-              <p>
-                Split materials and labour; obtain local quotes and keep a
-                contingency.
-              </p>
-            </li>
-          </ol>
-          <div className="sampleAssumption">
-            <ShieldCheck size={18} />
-            <span>
-              Assumption: no structural work. Costs and site conditions require
-              checking.
-            </span>
-          </div>
-        </article>
-      </section>
-      <section id="how" className="how wrap section">
-        <div>
-          <p className="kicker">A SMALL START. A CLEARER DECISION.</p>
-          <h2>
-            Less guessing.
-            <br />
-            <em>More direction.</em>
-          </h2>
-        </div>
-        <div className="steps">
-          <article>
-            <b>01</b>
-            <h3>Describe one room</h3>
-            <p>
-              Tell us your priority and budget. Measurements help, but you can
-              start without them.
-            </p>
-          </article>
-          <article>
-            <b>02</b>
-            <h3>Review your free preview</h3>
-            <p>
-              See what to keep, what to check and how to sequence the decisions.
-            </p>
-          </article>
-          <article>
-            <b>03</b>
-            <h3>Continue when you’re ready</h3>
-            <p>
-              Keep your browser copy or unlock a cloud room for follow-up
-              planning.
-            </p>
-          </article>
-        </div>
-      </section>
-      <section className="outcomes section">
-        <div className="wrap">
-          <p className="kicker">BUILT AROUND THE DECISIONS THAT MATTER</p>
-          <h2>
-            Spend with a plan.
-            <br />
-            <em>Not a guess.</em>
-          </h2>
-          <div className="outcomeGrid">
-            {[
-              {
-                Icon: Layers3,
-                title: "A practical scope",
-                text: "Separate essential changes from nice-to-haves and keep useful existing finishes.",
-              },
-              {
-                Icon: Wallet,
-                title: "Budget priorities",
-                text: "Make your budget explicit and identify what needs a quote before buying.",
-              },
-              {
-                Icon: ShieldCheck,
-                title: "Clear assumptions",
-                text: "See where measurements, local prices and professional advice are still needed.",
-              },
-            ].map(({ Icon, title, text }) => (
-              <article key={title}>
-                <Icon />
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-      <section id="pricing" className="pricing wrap section">
-        <div className="priceIntro">
-          <p className="kicker">TRY THE VALUE FIRST</p>
-          <h2>
-            One room.
-            <br />
-            <em>A simple next step.</em>
-          </h2>
-          <p>
-            Start free. This PoC accepts test payments only. Paid planning
-            depends on connected cloud and AI services.
-          </p>
-          <a className="textLink" href="#brief">
-            Start with my preview <ArrowRight size={16} />
-          </a>
-        </div>
-        <article className="priceCard featured">
-          <span className="plan">ROOM PASS · ONE-TIME</span>
-          <div className="amount">
-            <sup>$</sup>5
-          </div>
-          <p>For one room you want to think through properly.</p>
-          <ul>
-            <li>
-              <Check />
-              One saved room conversation
-            </li>
-            <li>
-              <Check />
-              Follow-up planning
-            </li>
-            <li>
-              <Check />
-              Scope, priorities and sequence
-            </li>
-            <li>
-              <Check />
-              Download your text plan
-            </li>
-          </ul>
-          <a className="primary wide" href="#brief">
-            Preview my room first <ArrowRight size={16} />
-          </a>
-          <small className="priceFootnote">No recurring subscription.</small>
-        </article>
-        <article className="priceCard">
-          <span className="plan">PRO · FOR MULTIPLE ROOMS</span>
-          <div className="amount">
-            <sup>$</sup>50<small>/mo</small>
-          </div>
-          <p>For ongoing planning across several projects.</p>
-          <ul>
-            <li>
-              <Check />
-              Multiple saved rooms
-            </li>
-            <li>
-              <Check />
-              Continue planning across projects
-            </li>
-            <li>
-              <Check />
-              Email access to your workspace
-            </li>
-            <li>
-              <Check />
-              Text plan downloads
-            </li>
-          </ul>
-          <Link className="modalPro" href="/chat">
-            Explore the workspace <ArrowRight size={16} />
-          </Link>
-          <small className="priceFootnote">
-            Test subscription. No real charge in this PoC.
-          </small>
-        </article>
       </section>
       <section className="faq wrap section">
         <div>
@@ -415,10 +439,10 @@ export default function Home() {
             <br />
             <em>Start with a plan.</em>
           </h2>
-          <a href="#brief" className="primary">
-            Get my free starter plan <ArrowRight size={17} />
-          </a>
-          <p className="briefNote">No card. One room. One clearer next step.</p>
+          <Link href="/purchase?plan=single" className="primary">
+            Get my Room Pass · $5 <ArrowRight size={17} />
+          </Link>
+          <p className="briefNote">One payment. Your own workspace. A plan to move forward.</p>
         </div>
       </section>
       <footer className="wrap">

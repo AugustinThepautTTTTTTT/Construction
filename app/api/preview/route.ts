@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { briefSchema, makePreview } from "@/lib/domain";
-import { sameOrigin, error } from "@/lib/server";
+import { NextRequest } from "next/server";
+import { sameOrigin, error, identity } from "@/lib/server";
+// Legacy anonymous preview endpoint is retired. All trials go through the
+// account-owned project and atomic quota in /api/chat.
 export async function POST(r: NextRequest) {
   if (!sameOrigin(r)) return error("Invalid request origin.", 403);
-  if (Number(r.headers.get("content-length")) > 10000)
-    return error("Please shorten the brief.", 413);
-  const parsed = briefSchema.safeParse(await r.json().catch(() => null));
-  if (!parsed.success)
-    return error("Add a room and a short goal to continue.", 400);
-  return NextResponse.json({
-    message: makePreview(parsed.data),
-    kind: "guided_preview",
-  });
+  try {
+    if (!(await identity(r))?.email)
+      return error("Create an account or sign in to use your free test.", 401);
+    return error("Open your workspace to use your account’s free test.", 410);
+  } catch {
+    return error("Account saving is temporarily unavailable.");
+  }
 }

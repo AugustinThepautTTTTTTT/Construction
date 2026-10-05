@@ -52,7 +52,9 @@ export default function AccountPage() {
   }
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    setNext(safeNext(q.get("next")));
+    const destination = safeNext(q.get("next"));
+    setNext(destination);
+    if (q.get("mode") === "login") setMode("login");
     const token = q.get("reset");
     if (token) {
       setReset(token);
@@ -63,7 +65,9 @@ export default function AccountPage() {
       setStatus(
         "That sign-in link is unavailable. Sign in or request a fresh link.",
       );
-    void refresh()
+    void refresh().then(() => api("/api/session")).then((c) => {
+      if (c.user?.email && q.get("next") && !token) window.location.assign(destination);
+    })
       .catch(() => setStatus("Account saving is temporarily unavailable."))
       .finally(() => setLoaded(true));
   }, []);

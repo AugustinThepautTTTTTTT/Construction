@@ -16,17 +16,16 @@ import {
 import Link from "next/link";
 import {
   briefSchema,
-  makePreview,
   type Project,
   type Brief,
 } from "@/lib/domain";
-import { api, readProjects, writeProjects } from "@/lib/browser-storage";
+import { api, writeProjects } from "@/lib/browser-storage";
 type Capabilities = {
   storage: "local" | "cloud";
   checkout: boolean;
   email: boolean;
   ai: boolean;
-  user: { id: string; email: string | null; pro_active: boolean } | null;
+  user: { id: string; email: string | null; pro_active: boolean; free_trial_used: boolean } | null;
 };
 const initial: Capabilities = {
   storage: "local",
@@ -68,77 +67,49 @@ export default function ChatPage() {
     }
   }
   async function create(brief: Brief, config = cap, list = projects) {
-    let p: Project = {
-      id: crypto.randomUUID(),
-      title: `${brief.room}: ${brief.goal.slice(0, 60)}`,
-      brief,
-      messages: [{ role: "assistant", content: makePreview(brief) }],
-      paid: false,
-      storage: "browser",
-      previewUsed: true,
-      updated_at: new Date().toISOString(),
-    };
-    let cloudSaved = false;
-    if (config.storage === "cloud" && config.user) {
-      try {
-        const saved = await api("/api/projects", brief);
-        p = saved.project;
-        cloudSaved = true;
+    if (!config.user?.email) {
+      window.location.assign("/account?next=%2Fchat");
+      return;
+    }
+    try {
+      let p: Project = (await api("/api/projects", brief)).project;
+      const next = [p, ...list.filter((x) => x.id !== p.id)];
+      persist(next, `roomwise:cloud-cache:${config.user.id}`);
+      setActive(p.id);
+      setSidebar(false);
+      window.history.replaceState(null, "", `/chat?project=${p.id}`);
+      if (config.user.pro_active || !config.user.free_trial_used) {
         try {
           const preview = await api("/api/chat", {
-            projectId: p.id,
-            message: `Create a starter plan for this room: ${brief.goal}`,
+            projectId: p.id, message: `Create a starter plan for this room: ${brief.goal}`,
           });
-          p = {
-            ...p,
-            messages: [
-              { role: "user", content: brief.goal },
-              { role: "assistant", content: preview.message },
-            ],
-            previewUsed: true,
-          };
-        } catch (e) {
-          setNotice(
-            e instanceof Error ? e.message : "The planner is unavailable.",
-          );
-        }
-      } catch {
-        setNotice(
-          "Cloud saving is temporarily unavailable. This preview is saved on your browser only.",
-        );
-      }
-    }
-    const key =
-      cloudSaved && config.user
-        ? `roomwise:cloud-cache:${config.user.id}`
-        : "roomwise:local-projects";
-    const next = [p, ...list.filter((x) => x.id !== p.id)];
-    persist(next, key);
-    setActive(p.id);
-    setSidebar(false);
-    if (cloudSaved)
-      window.history.replaceState(null, "", `/chat?project=${p.id}`);
+          p = {...p, messages: [{role: "user", content: brief.goal}, {role: "assistant", content: preview.message}], previewUsed: true};
+          persist([p, ...list.filter((x) => x.id !== p.id)], `roomwise:cloud-cache:${config.user.id}`);
+          setCap(await api("/api/session"));
+        } catch (e) { setNotice(e instanceof Error ? e.message : "The planner is unavailable."); }
+      } else setNotice("Your free test has been used. Choose a Room Pass or Pro to plan this room.");
+    } catch (e) { setNotice(e instanceof Error ? e.message : "Could not save this room. Please try again."); }
   }
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
     void (async () => {
       let config = initial;
-      let list: Project[] = readProjects();
+      let list: Project[] = [];
       try {
-        config = await api("/api/session", {});
+        config = await api("/api/session");
+        if (!config.user?.email) {
+          window.location.replace(`/account?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          return;
+        }
         setCap(config);
         if (config.storage === "cloud" && config.user) {
           list = (await api("/api/projects")).projects;
-          const local = readProjects();
-          list = [
-            ...list,
-            ...local.filter((p) => !list.some((x) => x.id === p.id)),
-          ];
+
         }
       } catch {
         setNotice(
-          "Cloud saving is unavailable. Your browser projects are still available.",
+          "Your account could not be loaded. Please refresh to try again.",
         );
       }
       setProjects(list);
@@ -418,15 +389,14 @@ export default function ChatPage() {
               <div className="agentOrb">
                 <Sparkles />
               </div>
-              <p className="kicker">START FREE</p>
+              <p className="kicker">YOUR WORKSPACE</p>
               <h1>
                 One room.
                 <br />
                 <em>One clearer next step.</em>
               </h1>
               <p>
-                Describe the room and what you want to improve. Your guided
-                preview is free, with no card required.
+                Describe the room and what you want to improve. One free test is included per account. Choose a Room Pass or Pro to continue.
               </p>
               <form className="workspaceBrief" onSubmit={start}>
                 <label>
@@ -467,14 +437,13 @@ export default function ChatPage() {
                   />
                 </label>
                 <button className="primary wide full" disabled={loading}>
-                  Get my free starter plan <ArrowRight size={16} />
+                  {cap.user?.pro_active ? "Create my room plan" : cap.user?.free_trial_used ? "Create a room" : "Use my free test"} <ArrowRight size={16} />
                 </button>
               </form>
             </div>
           ) : project.messages.length === 0 ? (
             <p>
-              Your room is saved. The planner is temporarily unavailable; try
-              again when planning is connected.
+              Your room is saved. Choose a Room Pass below to start planning, or upgrade to Pro.
             </p>
           ) : (
             project.messages.map((m, i) => (
@@ -501,7 +470,7 @@ export default function ChatPage() {
             <div>
               <LockKeyhole size={18} />
               <span>
-                <b>Your free preview is ready.</b>
+                <b>{project.messages.length ? "Your starter plan is ready." : "Ready to plan this room?"}</b>
                 <small>
                   {cap.checkout && cap.ai
                     ? "Continue this room with a test Room Pass."

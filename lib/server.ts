@@ -6,7 +6,16 @@ export function digest(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 export function sameOrigin(request: NextRequest) {
-  return request.headers.get("origin") === request.nextUrl.origin;
+  try {
+    const origin = new URL(request.headers.get("origin") || "");
+    // Next normalizes loopback URL hostnames; compare the HTTP authority instead.
+    return (
+      origin.host === request.headers.get("host") &&
+      origin.protocol === request.nextUrl.protocol
+    );
+  } catch {
+    return false;
+  }
 }
 export function error(message: string, status = 503) {
   return NextResponse.json({ error: message }, { status });

@@ -1,35 +1,104 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { CHAT_LIMITS, ROOM_PLANNER_PROMPT } from "@/lib/room-planner";
-
-const requestSchema = z.object({
-  messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(CHAT_LIMITS.maxCharactersPerMessage) })).min(1).max(CHAT_LIMITS.maxMessages),
+import { database, rateLimit } from "@/lib/database";
+import { ProjectRepository } from "@/lib/repository";
+import { ROOM_PLANNER_PROMPT, CHAT_LIMITS } from "@/lib/room-planner";
+import { identity, sameOrigin, error } from "@/lib/server";
+import { makePreview } from "@/lib/domain";
+const schema = z.object({
+  projectId: z.string().uuid(),
+  message: z.string().trim().min(1).max(4000),
 });
-const buckets = new Map<string, { count: number; reset: number }>();
-
-export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "local";
-  const now = Date.now();
-  const bucket = buckets.get(ip);
-  if (bucket && bucket.reset > now && bucket.count >= 12) return NextResponse.json({ error: "You’ve reached the minute limit. Please try again shortly." }, { status: 429 });
-  buckets.set(ip, !bucket || bucket.reset <= now ? { count: 1, reset: now + 60_000 } : { ...bucket, count: bucket.count + 1 });
-
-  const parsed = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Please shorten your message or start a new project." }, { status: 400 });
-  if (!process.env.OPENAI_API_KEY) return NextResponse.json({ message: "Your workspace is ready. Add OPENAI_API_KEY to connect the planning agent. For this room, I’ll first need the room type, approximate size, location, target budget, and the change you want most." });
-
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+export async function POST(r: NextRequest) {
+  if (!sameOrigin(r)) return error("Invalid request origin.", 403);
+  const parsed = schema.safeParse(await r.json().catch(() => null));
+  if (!parsed.success)
+    return error("Please shorten your message or choose a room.", 400);
   try {
-    const response = await client.responses.create({
-      model: process.env.OPENAI_MODEL || "gpt-5.1",
-      instructions: ROOM_PLANNER_PROMPT,
-      input: parsed.data.messages.map(message => ({ role: message.role, content: message.content })),
-      max_output_tokens: CHAT_LIMITS.maxOutputTokens,
-    });
-    return NextResponse.json({ message: response.output_text || "I need a little more detail about the room to continue." });
-  } catch (error) {
-    console.error("Room planner request failed", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: "The planner is temporarily unavailable. Your project is safe—please try again." }, { status: 502 });
+    const user = await identity(r);
+    const db = await database();
+    if (!db || !user)
+      return error(
+        "Cloud planning is not available yet. You can still use the free starter preview.",
+      );
+    const repo = new ProjectRepository(db);
+    const p = await repo.get(user.id, parsed.data.projectId);
+    if (!p) return error("Project not found.", 404);
+    if (!user.pro_active && !p.paid && p.previewUsed)
+      return error(
+        "Your free preview is ready. Unlock this room to continue.",
+        402,
+      );
+    if (
+      !(await rateLimit(`chat:${user.id}`, user.pro_active ? 120 : 40, 86400))
+    )
+      return error(
+        "You have reached today’s planning limit. Please return tomorrow.",
+        429,
+      );
+    if (p.messages.length > 200)
+      return error("Start a new room to continue.", 400);
+    if (!user.pro_active && !p.paid) {
+      const claim = await repo.claimPreview(user.id, p.id);
+      if (!claim)
+        return error(
+          "Your free preview is already being prepared or is ready.",
+          402,
+        );
+    }
+    let message: string;
+    let kind = "guided_preview";
+    if (!process.env.OPENAI_API_KEY) {
+      if (p.previewUsed)
+        return error(
+          "AI planning is temporarily unavailable. Your saved plan is safe.",
+        );
+      message = makePreview(p.brief);
+    } else {
+      const client = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        timeout: 40000,
+        maxRetries: 0,
+      });
+      let response;
+      try {
+        response = await client.responses.create({
+          model: process.env.OPENAI_MODEL || "gpt-5.1",
+          instructions:
+            ROOM_PLANNER_PROMPT + `\nRoom brief: ${JSON.stringify(p.brief)}`,
+          input: [
+            ...p.messages.slice(-22),
+            { role: "user" as const, content: parsed.data.message },
+          ],
+          max_output_tokens: CHAT_LIMITS.maxOutputTokens,
+          store: false,
+        });
+      } catch (e) {
+        if (!user.pro_active && !p.paid)
+          await db.query(
+            "UPDATE roomwise.projects SET preview_used=false WHERE id=$1 AND user_id=$2",
+            [p.id, user.id],
+          );
+        throw e;
+      }
+      message =
+        response.output_text ||
+        "Please add the room dimensions and your main priority.";
+      kind = "ai";
+    }
+    await repo.append(user.id, p.id, [
+      { role: "user", content: parsed.data.message },
+      { role: "assistant", content: message },
+    ]);
+    await db.query(
+      "UPDATE roomwise.projects SET preview_used=true WHERE id=$1 AND user_id=$2",
+      [p.id, user.id],
+    );
+    return NextResponse.json({ message, kind });
+  } catch {
+    return error(
+      "The planner is temporarily unavailable. Your saved plan is safe.",
+    );
   }
 }

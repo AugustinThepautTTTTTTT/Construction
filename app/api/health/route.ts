@@ -21,6 +21,12 @@ export async function GET() {
       storage: databaseStatus === "connected" ? "postgresql" : "browser",
       integrations: {
         database: databaseStatus,
+        accounts: databaseStatus === "connected",
+        billingPortal: Boolean(
+          process.env.STRIPE_PORTAL_CONFIGURATION_ID &&
+          testKey &&
+          databaseStatus === "connected",
+        ),
         openai: Boolean(aiPolicy()),
         stripe:
           testKey &&

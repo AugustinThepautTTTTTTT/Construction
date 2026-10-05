@@ -25,7 +25,7 @@ export async function identity(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   if (!db || !token || !/^[a-f0-9]{64}$/.test(token)) return null;
   const r = await db.query(
-    "SELECT u.id,u.email,u.pro_active FROM roomwise.sessions s JOIN roomwise.users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
+    "SELECT u.id,u.email,u.name,u.email_verified,u.pro_active FROM roomwise.sessions s JOIN roomwise.users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [digest(token)],
   );
   return r.rows[0] || null;
@@ -52,4 +52,18 @@ export function sessionCookie(response: NextResponse, token: string) {
     maxAge: 30 * 86400,
   });
   return response;
+}
+
+export function clearSession(response: NextResponse) {
+  response.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
+}
+export function requestIp(r: NextRequest) {
+  return r.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }

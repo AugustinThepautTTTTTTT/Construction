@@ -32,11 +32,27 @@ export async function POST(r: NextRequest) {
       if (grant) {
         const session = event.data.object as unknown as {
           subscription: string | { id: string } | null;
+          customer: string | { id: string } | null;
         };
         const sub =
           typeof session.subscription === "string"
             ? session.subscription
             : session.subscription?.id;
+        const customer =
+          typeof session.customer === "string"
+            ? session.customer
+            : session.customer?.id;
+        const account = await client.query(
+          "SELECT stripe_customer_id FROM roomwise.users WHERE id=$1",
+          [grant.ownerId],
+        );
+        if (
+          !customer ||
+          !account.rows[0] ||
+          (account.rows[0].stripe_customer_id &&
+            account.rows[0].stripe_customer_id !== customer)
+        )
+          throw new Error("Payment owner mismatch");
         let active = true;
         if (grant.plan === "pro") {
           if (!sub || !process.env.STRIPE_SECRET_KEY)
@@ -46,13 +62,18 @@ export async function POST(r: NextRequest) {
           }).subscriptions.retrieve(sub);
           active = ["active", "trialing"].includes(current.status);
         }
-        await new ProjectRepository(client).grant(
+        const granted = await new ProjectRepository(client).grant(
           event.id,
           grant,
           sub,
           event.created,
           active,
         );
+        if (granted)
+          await client.query(
+            "UPDATE roomwise.users SET stripe_customer_id=COALESCE(stripe_customer_id,$1) WHERE id=$2",
+            [customer, grant.ownerId],
+          );
       }
     } else if (
       [
@@ -76,10 +97,13 @@ export async function POST(r: NextRequest) {
           [event.id],
         );
         if (inserted.rowCount) {
-          const active = isSub
-            ? event.type !== "customer.subscription.deleted" &&
-              ["active", "trialing"].includes(object.status)
-            : event.type === "invoice.paid";
+          if (!process.env.STRIPE_SECRET_KEY)
+            throw new Error("Stripe key unavailable");
+          const current = await new Stripe(process.env.STRIPE_SECRET_KEY, {
+            timeout: 10000,
+            maxNetworkRetries: 0,
+          }).subscriptions.retrieve(id);
+          const active = ["active", "trialing"].includes(current.status);
           await client.query(
             "UPDATE roomwise.users SET pro_active=$1,billing_event_at=$3 WHERE subscription_id=$2 AND billing_event_at<=$3",
             [active, id, event.created],

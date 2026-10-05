@@ -5,6 +5,9 @@ import * as domain from "../lib/domain";
 const session = {
   livemode: false,
   payment_status: "paid",
+  currency: "usd",
+  amount_total: 500,
+  mode: "payment",
   metadata: {
     plan: "single",
     ownerId: "b1d3e4fc-072f-4ea6-8f1e-3780c8f21ffd",
@@ -28,6 +31,9 @@ test("unpaid, live and ownerless checkout cannot grant access", () => {
   for (const value of [
     { ...session, payment_status: "unpaid" },
     { ...session, livemode: true },
+    { ...session, amount_total: 1 },
+    { ...session, currency: "eur" },
+    { ...session, mode: "subscription" },
     { ...session, metadata: { plan: "single" } },
   ])
     assert.equal(domain.checkoutGrant(value), null);
@@ -36,6 +42,7 @@ test("unsafe redirects fall back to the workspace", () => {
   assert.equal(typeof domain.safeNext, "function");
   assert.equal(domain.safeNext("https://evil.example"), "/chat");
   assert.equal(domain.safeNext("//evil.example"), "/chat");
+  assert.equal(domain.safeNext("/\n/evil.example"), "/chat");
   assert.equal(domain.safeNext("/chat?project=abc"), "/chat?project=abc");
 });
 test("preview is useful without an API key and labels its estimates", () => {

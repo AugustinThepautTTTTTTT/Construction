@@ -26,6 +26,11 @@ export async function GET(r: NextRequest) {
       [randomUUID(), link.email],
     );
     const id = u.rows[0].id;
+    await c.query(
+      "UPDATE roomwise.users SET password_hash=CASE WHEN email_verified THEN password_hash ELSE NULL END,email_verified=true WHERE id=$1",
+      [id],
+    );
+    await c.query("DELETE FROM roomwise.sessions WHERE user_id=$1", [id]);
     if (link.guest_id && id !== link.guest_id) {
       const guest = await c.query(
         "SELECT email FROM roomwise.users WHERE id=$1 FOR UPDATE",

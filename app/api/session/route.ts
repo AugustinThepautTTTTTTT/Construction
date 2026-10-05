@@ -11,6 +11,7 @@ import {
 export const dynamic = "force-dynamic";
 function capabilities() {
   return {
+    accounts: databaseConfigured(),
     storage: databaseConfigured() ? "cloud" : "local",
     checkout: Boolean(
       databaseConfigured() &&

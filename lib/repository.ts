@@ -3,6 +3,11 @@ import type { Brief, Message, Project } from "./domain";
 export const SCHEMA = `
 CREATE SCHEMA IF NOT EXISTS roomwise;
 CREATE TABLE IF NOT EXISTS roomwise.users(id uuid PRIMARY KEY, email text UNIQUE, pro_active boolean NOT NULL DEFAULT false, subscription_id text UNIQUE, billing_event_at bigint NOT NULL DEFAULT 0, created_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT '';
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS password_hash text;
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false;
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS stripe_customer_id text UNIQUE;
+CREATE TABLE IF NOT EXISTS roomwise.password_resets(token_hash text PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.sessions(token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES roomwise.users(id), expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.magic_links(token_hash text PRIMARY KEY,email text NOT NULL,guest_id uuid REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.projects(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),title text NOT NULL,brief jsonb NOT NULL,messages jsonb NOT NULL DEFAULT '[]',paid boolean NOT NULL DEFAULT false,preview_used boolean NOT NULL DEFAULT false,updated_at timestamptz NOT NULL DEFAULT now());

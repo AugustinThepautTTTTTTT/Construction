@@ -271,6 +271,12 @@ export default function ChatPage() {
       );
       return;
     }
+    if (!cap.user?.email) {
+      window.location.assign(
+        `/account?next=${encodeURIComponent(`/chat?project=${project.id}`)}`,
+      );
+      return;
+    }
     setCheckoutBusy(true);
     try {
       let id = project.id;
@@ -359,8 +365,8 @@ export default function ChatPage() {
             <b>{cap.user?.email || "Your workspace"}</b>
             <small>
               {cap.user?.email
-                ? "Manage sign-in"
-                : "Email access & saved plans"}
+                ? "Account & billing"
+                : "Create account or sign in"}
             </small>
           </div>
         </Link>

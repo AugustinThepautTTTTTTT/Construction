@@ -100,6 +100,8 @@ export type RoomPlan = z.infer<typeof planSchema> & { confirmed?: boolean };
 export type Estimate = z.infer<typeof estimateSchema>;
 export type Visual = z.infer<typeof visualSchema>;
 export type PriceSource = {
+  coveragePerUnit?: number | null;
+  evidence?: string;
   index: number;
   price: number;
   url: string;

@@ -1,3 +1,5 @@
+import OpenAI from "openai";
+import { researchMaterialPrices } from "./material-research";
 import { randomUUID } from "node:crypto";
 import type { Queryable } from "./repository";
 import {
@@ -66,14 +68,22 @@ export async function runRoomTool(
     "INSERT INTO roomwise.artifacts(id,user_id,project_id,kind,data,model) VALUES($1,$2,$3,$4,$5::jsonb,'gpt-6-luna')",
     [id, owner, projectId, kind, JSON.stringify(data)],
   );
+  let products: unknown[] = [], researchNotice = "";
+  if (kind === "estimate") {
+    try { products = await researchMaterialPrices(db, owner, id, data); }
+    catch (e) { console.error("Roomwise automatic price research failed", {status: e instanceof OpenAI.APIError ? e.status : undefined, code: e instanceof OpenAI.APIError ? e.code : undefined, param: e instanceof OpenAI.APIError ? e.param : undefined}); researchNotice = "Provider prices could not be verified. These are estimated allowances, not product quotes."; }
+    if (researchNotice) await db.query("UPDATE roomwise.artifacts SET data=data || $1::jsonb WHERE id=$2 AND user_id=$3", [JSON.stringify({researchNotice}), id, owner]);
+  }
   return {
     id,
+    products,
+    researchNotice,
     kind,
     summary:
       kind === "plan"
         ? "2D plan and material assessment saved; dimensions await user confirmation."
         : kind === "estimate"
-          ? "Bill of materials saved with quantities, estimated costs, local shopping searches and a ready Excel download. Local price research is available on its card."
+          ? "Bill saved with quantities and Excel export. Only products in products have verified provider links/prices; all other lines are estimated allowances. Discuss unmatched items instead of claiming a fully sourced basket."
           : "Before/after brief saved. The user can generate one concept on its card; no image has been generated yet.",
   };
 }

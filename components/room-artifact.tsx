@@ -1,4 +1,7 @@
 "use client";
+import { Collapsible } from "@base-ui-components/react/collapsible";
+import { ChevronDown, Download, ExternalLink } from "lucide-react";
+import { Button } from "@base-ui-components/react/button";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/browser-storage";
 import {
@@ -9,6 +12,9 @@ import {
   type Estimate,
   type PriceSource,
 } from "@/lib/room-artifacts";
+function Detail({ title, children }: { title: string; children: React.ReactNode }) {
+  return <Collapsible.Root className="artifactDetail"><Collapsible.Trigger className="detailTrigger">{title}<ChevronDown size={14}/></Collapsible.Trigger><Collapsible.Panel className="detailPanel">{children}</Collapsible.Panel></Collapsible.Root>;
+}
 export function FloorPlan({ plan }: { plan: RoomPlan }) {
   const ref = useRef<SVGSVGElement>(null),
     points = plan.outline;
@@ -68,7 +74,7 @@ export function FloorPlan({ plan }: { plan: RoomPlan }) {
               fontSize={font}
               fill="#344b3b"
             >
-              {length.toFixed(2)} m
+              {plan.confirmed ? "" : "≈ "}{length.toFixed(1)} m
             </text>
           );
         })}
@@ -94,6 +100,7 @@ export function FloorPlan({ plan }: { plan: RoomPlan }) {
         })}
         {plan.fixtures.map((f, i) => (
           <g key={i}>
+            <title>{f.label}</title>
             <rect
               x={f.x}
               y={f.y}
@@ -111,7 +118,7 @@ export function FloorPlan({ plan }: { plan: RoomPlan }) {
               fontSize={font * 0.85}
               fill="#344b3b"
             >
-              {f.label}
+              {i + 1}
             </text>
           </g>
         ))}
@@ -122,8 +129,10 @@ export function FloorPlan({ plan }: { plan: RoomPlan }) {
             : "Provisional dimensions — confirm before ordering"}
         </text>
       </svg>
+      {!!plan.openings.length && <p className="planLegend">{plan.openings.map(o => `${o.kind === "window" ? "Window" : "Door"} · wall ${o.wall + 1}, ${plan.confirmed ? "" : "≈ "}${o.width.toFixed(1)} m wide`).join(" / ")}</p>}
+      {!!plan.fixtures.length && <p className="planLegend">{plan.fixtures.map((f, i) => `${i + 1}. ${f.label}`).join(" · ")}</p>}
       <div className="artifactActions">
-        <button onClick={download}>Download 2D plan</button>
+        <Button onClick={download}><Download size={14}/> Download plan</Button>
         <small>
           <span className="doorKey" /> Door <span className="windowKey" />{" "}
           Window
@@ -164,7 +173,7 @@ export function RoomArtifact({ id }: { id: string }) {
         setNotice(
           result.count
             ? `${result.count} local product sources found. Check pack sizes and checkout prices.`
-            : "No matching prices could be verified. Local retailer searches remain available.",
+            : "No matching provider prices could be verified. Unmatched items remain estimated allowances.",
         );
     } catch (e) {
       setNotice(
@@ -225,7 +234,7 @@ export function RoomArtifact({ id }: { id: string }) {
               : "Check every wall, opening and fixture dimension. Tell Roomwise corrections in chat before confirming."}
           </p>
           {!plan.confirmed && (
-            <button
+            <Button
               disabled={busy}
               onClick={() =>
                 void action(`/api/artifacts/${id}`, {
@@ -234,23 +243,9 @@ export function RoomArtifact({ id }: { id: string }) {
               }
             >
               I confirm these measurements
-            </button>
+            </Button>
           )}
-          {!!plan.surfaces.length && (
-            <div className="surfaceAssessment">
-              {plan.surfaces.map((s, i) => (
-                <div key={i}>
-                  <strong>
-                    {s.surface} · {s.condition}
-                  </strong>
-                  <p>{s.material}</p>
-                  <p>{s.evidence}</p>
-                  <p>{s.recommendation}</p>
-                  <small>Observation confidence: {s.confidence}</small>
-                </div>
-              ))}
-            </div>
-          )}
+          {!!plan.surfaces.length && <Detail title="Existing materials & condition"><div className="surfaceAssessment">{plan.surfaces.map((s, i) => <p key={i}><strong>{s.surface}.</strong> {s.material}. {s.evidence} {s.recommendation} <small>{s.confidence} confidence</small></p>)}</div></Detail>}
           {!!plan.questions.length && (
             <div className="artifactHint">
               <strong>To clarify</strong>
@@ -303,9 +298,8 @@ export function RoomArtifact({ id }: { id: string }) {
                         {item.quantity} {item.unit}
                       </td>
                       <td>
-                        {item.low.toFixed(2)}–{item.high.toFixed(2)}{" "}
-                        {estimate.currency}
-                        <small>Estimated</small>
+                        {source ? (source.price * item.quantity).toFixed(2) : `${item.low.toFixed(2)}–${item.high.toFixed(2)}`} {estimate.currency}
+                        <small>{source ? "Sourced product subtotal" : "Estimated allowance"}</small>
                         {source && (
                           <small>
                             Researched unit price: {source.price.toFixed(2)}{" "}
@@ -316,19 +310,10 @@ export function RoomArtifact({ id }: { id: string }) {
                       <td>
                         {source && (
                           <a href={source.url} target="_blank" rel="noreferrer">
-                            {source.title}
+                            {source.title} <ExternalLink size={12}/>
                           </a>
                         )}
-                        {item.links.map((link: any) => (
-                          <a
-                            key={link.url}
-                            href={link.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Search {link.label}
-                          </a>
-                        ))}
+                        {!source && <small className="unverifiedPrice">No verified product yet</small>}
                       </td>
                     </tr>
                   );
@@ -336,8 +321,9 @@ export function RoomArtifact({ id }: { id: string }) {
               </tbody>
             </table>
           </div>
+          {artifact.data.researchNotice && <p className="artifactHint">{artifact.data.researchNotice}</p>}
           <strong className="estimateTotal">
-            Estimated total: {estimate.calculations.low.toFixed(2)}–
+            Planning range: {estimate.calculations.low.toFixed(2)}–
             {estimate.calculations.high.toFixed(2)} {estimate.currency}
           </strong>
           <div className="artifactActions">
@@ -345,14 +331,14 @@ export function RoomArtifact({ id }: { id: string }) {
               className="artifactDownload"
               href={`/api/artifacts/${id}/export`}
             >
-              Download Excel (.xlsx)
+              <Download size={14}/> Export Excel
             </a>
-            <button
+            <Button
               disabled={busy}
               onClick={() => void action(`/api/artifacts/${id}/prices`)}
             >
-              {busy ? "Checking local retailers…" : "Check local prices"}
-            </button>
+              {busy ? "Checking local retailers…" : "Refresh provider prices"}
+            </Button>
           </div>
           <p className="artifactHint">
             Prices exclude anything listed below. Researched products may differ
@@ -360,14 +346,13 @@ export function RoomArtifact({ id }: { id: string }) {
             before buying.
           </p>
           {!!estimate.exclusions.length && (
-            <details>
-              <summary>Exclusions</summary>
+            <Detail title="What’s excluded">
               <ul>
                 {estimate.exclusions.map((e, i) => (
                   <li key={i}>{e}</li>
                 ))}
               </ul>
-            </details>
+            </Detail>
           )}
         </>
       )}
@@ -399,38 +384,36 @@ export function RoomArtifact({ id }: { id: string }) {
             )}
           </div>
           {!artifact.hasImage && (
-            <button
+            <Button
               disabled={busy || imageRunning}
               onClick={() => void action(`/api/artifacts/${id}/image`)}
             >
               {busy || imageRunning
                 ? "Generating concept…"
                 : "Generate before / after"}
-            </button>
+            </Button>
           )}
           <p className="artifactHint">
             One image per click, up to two concepts per room. Review geometry
             and retained elements; this is an illustration.
           </p>
-          <details>
-            <summary>Elements to preserve</summary>
+          <Detail title="Elements to preserve">
             <ul>
               {visual.retain.map((s, i) => (
                 <li key={i}>{s}</li>
               ))}
             </ul>
-          </details>
+          </Detail>
         </>
       )}
       {!!artifact.data.assumptions?.length && (
-        <details>
-          <summary>Assumptions</summary>
+        <Detail title="Assumptions & measurement notes">
           <ul>
             {artifact.data.assumptions.map((a: string, i: number) => (
               <li key={i}>{a}</li>
             ))}
           </ul>
-        </details>
+        </Detail>
       )}
       {notice && (
         <p role="status" className="artifactNotice">

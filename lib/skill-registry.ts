@@ -6,7 +6,7 @@ const specs = [
     folder: "assess-room",
     name: "create_room_plan",
     description:
-      "Save a measured or explicitly provisional 2D room plan and visible material condition assessment. Ask for missing dimensions first; never infer true scale from photos.",
+      "Save a measured or explicitly provisional 2D room plan and visible material condition assessment. Start from uploaded photos: infer approximate dimensions and visible openings, state evidence and uncertainty, then invite corrections.",
     schema: planSchema,
   },
   {
@@ -20,7 +20,7 @@ const specs = [
     folder: "estimate-materials",
     name: "create_material_estimate",
     description:
-      "Save a quantitative bill of materials and local cost estimate with retailer searches and Excel export. Requires country/currency and a measured or provisional plan for area-based quantities.",
+      "Save a quantitative bill of materials and local cost estimate with automatic real retailer product research and Excel export. Requires country/currency and a measured or provisional plan for area-based quantities.",
     schema: estimateSchema,
   },
 ];

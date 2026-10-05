@@ -17,12 +17,20 @@ export const priceResearchSchema = z
             currency: z.string().regex(/^[A-Z]{3}$/),
             unit: z.string().max(30),
             note: z.string().max(500),
+            sourceEvidence: z.string().min(1).max(300),
+            coveragePerUnit: z.number().positive().nullable(),
+            coverageEvidence: z.string().max(300).nullable(),
           })
           .strict(),
       )
       .max(16),
   })
   .strict();
+export function priceResearchJsonSchema() {
+  const { $schema, ...schema } = priceResearchSchema.toJSONSchema({ io: "input" });
+  // OpenAI supports UUIDs but not URI format; validate URL syntax locally instead.
+  return JSON.parse(JSON.stringify(schema, (key, value) => key === "format" && value === "uri" ? undefined : value));
+}
 export function retrievedUrls(output: unknown) {
   const urls = new Set<string>();
   const walk = (node: unknown) => {
@@ -36,10 +44,14 @@ export function retrievedUrls(output: unknown) {
   walk(output);
   return urls;
 }
+function containsAmount(text: string, amount: number) {
+  return (text.match(/\d+(?:[.,]\d+)?/g) || []).some(value => Number(value.replace(",", ".")) === amount);
+}
 export function vettedPrices(
   raw: unknown,
   estimate: Estimate,
   urls: Set<string>,
+  findings: string,
 ): PriceSource[] {
   const parsed = priceResearchSchema.parse(raw),
     domains = retailerDomains(estimate.country);
@@ -61,6 +73,12 @@ export function vettedPrices(
       !urls.has(product.url) ||
       product.currency !== estimate.currency ||
       product.unit !== item.unit ||
+      !findings.includes(product.sourceEvidence) ||
+      !containsAmount(product.sourceEvidence, product.price) ||
+      (product.coveragePerUnit !== null && (!product.coverageEvidence || !findings.includes(product.coverageEvidence) || !containsAmount(product.coverageEvidence, product.coveragePerUnit))) ||
+      (item.coveragePerUnit !== null && product.coveragePerUnit === null) ||
+      /(?:search|recherche|category|categories)(?:[/?-]|$)/i.test(url.pathname) ||
+      url.pathname === "/" ||
       (domains.length &&
         !domains.some(
           (domain) =>
@@ -72,6 +90,8 @@ export function vettedPrices(
     return [
       {
         index: product.index,
+        coveragePerUnit: product.coveragePerUnit,
+        evidence: product.sourceEvidence,
         price: product.price,
         url: product.url,
         title: product.title,

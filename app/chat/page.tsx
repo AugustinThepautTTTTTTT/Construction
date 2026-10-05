@@ -1,4 +1,5 @@
 "use client";
+import { Button } from "@base-ui-components/react/button";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
@@ -418,7 +419,7 @@ export default function ChatPage() {
           {photos.map((photo, i) => (
             <div key={photo.preview}>
               <img src={photo.preview} alt={photo.name} />
-              <button
+              <Button
                 type="button"
                 aria-label={`Remove ${photo.name}`}
                 disabled={busy || preparing}
@@ -428,7 +429,7 @@ export default function ChatPage() {
                 }}
               >
                 <X size={14} />
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -443,7 +444,7 @@ export default function ChatPage() {
         disabled={busy || preparing}
       />
       <div className="chatComposerTools">
-        <button
+        <Button
           className="attachPhoto"
           type="button"
           aria-label="Attach room photos"
@@ -452,7 +453,7 @@ export default function ChatPage() {
           onClick={() => photoPicker.current?.click()}
         >
           <Paperclip size={19} />
-        </button>
+        </Button>
         <span>
           {preparing ? (
             "Preparing your photos…"
@@ -468,7 +469,7 @@ export default function ChatPage() {
             "Your ideas, one conversation away."
           )}
         </span>
-        <button
+        <Button
           type="submit"
           aria-label="Send message"
           disabled={
@@ -480,14 +481,14 @@ export default function ChatPage() {
           }
         >
           <ArrowUp size={20} />
-        </button>
+        </Button>
       </div>
     </form>
   );
   return (
     <main className="workspace cleanWorkspace">
       {sidebar && (
-        <button
+        <Button
           className="historyBackdrop"
           aria-label="Close chat history"
           onClick={() => setSidebar(false)}
@@ -497,19 +498,19 @@ export default function ChatPage() {
         <Link href="/" className="brand">
           <span className="brandMark">R</span>roomwise
         </Link>
-        <button
+        <Button
           className="newChatButton"
           onClick={newChat}
           disabled={busy || preparing}
         >
           <Plus size={17} /> New chat
-        </button>
+        </Button>
         <p className="sideLabel">CHAT HISTORY</p>
         <div className="projectList">
           {projects
             .filter((p) => p.messages.length || p.paid || p.id === active)
             .map((p) => (
-              <button
+              <Button
                 key={p.id}
                 className={p.id === active ? "active" : ""}
                 disabled={busy || preparing}
@@ -533,7 +534,7 @@ export default function ChatPage() {
                     ?.content.slice(0, 60) ||
                     (p.paid ? "Your new room" : "New chat")}
                 </span>
-              </button>
+              </Button>
             ))}
         </div>
         <Link className="account cleanAccount" href="/account">
@@ -544,13 +545,13 @@ export default function ChatPage() {
       </aside>
       <section className="chatArea">
         <header className="chatHead">
-          <button
+          <Button
             className="menu"
             aria-label="Open chat history"
             onClick={() => setSidebar(!sidebar)}
           >
             <Menu size={18} />
-          </button>
+          </Button>
           <span className="chatHeaderTitle">
             {empty
               ? "Roomwise"
@@ -560,21 +561,21 @@ export default function ChatPage() {
           </span>
           <div className="workspaceActions">
             {!empty && (
-              <button onClick={download} aria-label="Download plan">
+              <Button onClick={download} aria-label="Download plan">
                 <Download size={16} />
-              </button>
+              </Button>
             )}
-            <button onClick={newChat} aria-label="New chat">
+            <Button onClick={newChat} aria-label="New chat">
               <Plus size={17} />
-            </button>
+            </Button>
           </div>
         </header>
         {notice && (
           <div className="cleanNotice" role="status">
             <span>{notice}</span>
-            <button aria-label="Dismiss message" onClick={() => setNotice("")}>
+            <Button aria-label="Dismiss message" onClick={() => setNotice("")}>
               <X size={15} />
-            </button>
+            </Button>
           </div>
         )}
         {empty ? (
@@ -592,13 +593,13 @@ export default function ChatPage() {
               each
             </small>
             {project && !unlocked && (
-              <button
+              <Button
                 className="checkPaymentLink"
                 disabled={confirming}
                 onClick={() => void checkPayment()}
               >
                 Already paid? Check payment
-              </button>
+              </Button>
             )}
           </div>
         ) : (
@@ -624,18 +625,18 @@ export default function ChatPage() {
             <span>
               Your free test is used. Continue this chat with a Room Pass.
             </span>
-            <button onClick={() => void checkout("single")} disabled={busy}>
+            <Button onClick={() => void checkout("single")} disabled={busy}>
               Room Pass · $5
-            </button>
-            <button onClick={() => void checkout("pro")} disabled={busy}>
+            </Button>
+            <Button onClick={() => void checkout("pro")} disabled={busy}>
               Pro · $50/month
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => void checkPayment()}
               disabled={busy || confirming}
             >
               Check payment
-            </button>
+            </Button>
           </div>
         )}
         <p className="disclaimer">

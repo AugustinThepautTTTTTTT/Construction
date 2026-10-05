@@ -81,3 +81,41 @@ html{scroll-behavior:smooth;scroll-padding-top:30px}.funnelHero{display:grid;gri
 .artifactNotice {padding:12px;background:#f5f4e9;border-radius:8px;font-size:12px;}
 .doorKey,.windowKey {display:inline-block;width:12px;height:4px;background:#c38a54;vertical-align:middle;margin:0 3px;}.windowKey{background:#63a3ba;}
 @media(max-width:600px){.roomArtifact{padding:14px}.artifactTitle{align-items:flex-start;flex-direction:column}.beforeAfter{grid-template-columns:1fr}.artifactTitle h3{font-size:15px}}
+/* Roomwise studio: quiet typography and a single conversational canvas. */
+.cleanWorkspace{background:#faf9f6;grid-template-columns:236px minmax(0,1fr)}
+.cleanWorkspace .side{background:#f3f2ee;border-color:#e6e5df;padding:25px 16px}
+.cleanWorkspace .chatArea{background:#fcfbf8}
+.cleanWorkspace .chatHead{height:66px;border-bottom:1px solid #ecebe5;background:transparent}
+.cleanWorkspace .chatHead>div{font-size:13px;font-weight:500}
+.cleanWorkspace .thread{width:min(790px,calc(100% - 80px));padding:44px 4px 42px}
+.cleanWorkspace .message{margin:0 0 42px}
+.cleanWorkspace .message>span{font-size:10px;letter-spacing:.06em;font-weight:500;color:#8a8b82;margin-bottom:12px;text-transform:none}
+.cleanWorkspace .message>div{font-size:15px;line-height:1.8}
+.cleanWorkspace .message.user{margin-left:0;padding-left:20px;border-left:2px solid #d4d9cc}
+.cleanWorkspace .message.user>div{padding:0;background:none;border-radius:0;color:#495146}
+.cleanWorkspace .formattedReply p{margin:0 0 16px}
+.cleanWorkspace .formattedReply h2,.cleanWorkspace .formattedReply h3{font-size:16px;font-weight:600;letter-spacing:-.02em}
+.cleanWorkspace .formattedReply strong{font-weight:600}
+.cleanWorkspace .roomArtifact{border:0;border-top:1px solid #dfE2d9;border-radius:0;background:transparent;padding:24px 0 8px;margin:28px 0;overflow:visible}
+.cleanWorkspace .artifactTitle{display:block;margin-bottom:18px}
+.cleanWorkspace .artifactTitle h3{font-size:18px;font-weight:550;letter-spacing:-.03em}
+.cleanWorkspace .artifactTitle>span{display:block;margin-top:6px;font-size:9px;color:#95998e;letter-spacing:.1em}
+.cleanWorkspace .floorPlan{max-height:330px;border-radius:8px;border:1px solid #e9ebe4;background:#fafbf7}
+.cleanWorkspace .planLegend{font-size:12px;color:#6a7564;margin:10px 0}
+.cleanWorkspace .artifactHint{font-size:12px;line-height:1.7;color:#7b8173;margin:12px 0}
+.cleanWorkspace .roomArtifact button,.cleanWorkspace .artifactDownload{gap:7px;border:1px solid #dfe3d7;background:transparent;border-radius:8px;padding:8px 12px;font-size:12px;transition:background .15s,border-color .15s}
+.cleanWorkspace .roomArtifact button:hover,.cleanWorkspace .artifactDownload:hover{background:#edf0e7;border-color:#becab5}
+.cleanWorkspace .roomArtifact .detailTrigger{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-radius:0;padding:12px 0;color:#697360;background:transparent;text-align:left}
+.detailTrigger svg{transition:transform .2s}.detailTrigger[data-panel-open] svg{transform:rotate(180deg)}
+.artifactDetail{border-top:1px solid #e8eae2;margin-top:12px}.detailPanel{overflow:hidden;font-size:13px;line-height:1.75;height:var(--collapsible-panel-height);transition:height .2s ease}.detailPanel[data-starting-style],.detailPanel[data-ending-style]{height:0}.detailPanel ul{padding-left:18px;margin:4px 0 16px}
+.cleanWorkspace .surfaceAssessment{display:block;margin:0}.cleanWorkspace .surfaceAssessment p{font-size:13px;margin:0 0 14px}.surfaceAssessment small{display:block;color:#919788}
+.cleanWorkspace .materialTable table{font-size:12px;min-width:540px}.cleanWorkspace .materialTable th{font-size:10px;font-weight:500;color:#8a9281}.cleanWorkspace .materialTable td{padding:16px 8px}.cleanWorkspace .materialTable td:first-child{width:43%}.cleanWorkspace .materialTable td:nth-child(2){white-space:nowrap}.cleanWorkspace .materialTable td small{font-size:11px;line-height:1.5}.cleanWorkspace .materialTable td:first-child small:last-child{display:none}.cleanWorkspace .materialTable a{display:inline;font-size:12px;text-decoration:none;border-bottom:1px solid #c7d1bf}.unverifiedPrice{font-style:italic;color:#929889!important}.cleanWorkspace .estimateTotal{font-size:14px;font-weight:550;margin-top:20px}
+.cleanWorkspace .beforeAfter{gap:16px}.cleanWorkspace .beforeAfter img{border-radius:8px}.cleanWorkspace .beforeAfter figcaption{font-size:11px;letter-spacing:.02em;color:#858e7c}.cleanWorkspace .artifactNotice{background:transparent;border-left:2px solid #c4ceb7;border-radius:0;padding:5px 12px;color:#6f795f}
+.cleanWorkspace .chatComposer{width:min(790px,calc(100% - 80px));background:#fff;border:1px solid #dfe3d8;border-radius:18px;box-shadow:0 8px 30px #24332808;padding:12px 16px}
+.cleanWorkspace .chatComposer:focus-within{border-color:#aebea1;box-shadow:0 8px 30px #2433280c,0 0 0 3px #bac9af18}
+.cleanWorkspace .chatComposer textarea{font-size:15px;line-height:1.65;padding:7px 2px;background:transparent}
+.cleanWorkspace .chatComposerTools button{border-radius:10px}.cleanWorkspace .chatComposerTools button.attachPhoto{border:0;color:#78846d}.cleanWorkspace .chatComposerTools>span{font-size:10px;color:#919687}
+.cleanWorkspace button:focus-visible,.cleanWorkspace a:focus-visible{outline:2px solid #8a9e77;outline-offset:3px}
+.cleanWorkspace .roomPhotos img{width:160px;height:120px;border:0;border-radius:10px}.cleanWorkspace .thinking{color:#7d8774;font-size:12px}.cleanWorkspace .chatWelcome h1{letter-spacing:-.05em}.cleanWorkspace .projectList button.active{background:#e7eae1;box-shadow:none}.cleanWorkspace .projectList span{font-size:12px;font-weight:500}
+@media(max-width:700px){.cleanWorkspace{grid-template-columns:minmax(0,1fr)}.cleanWorkspace .thread,.cleanWorkspace .chatComposer{width:calc(100% - 36px)}.cleanWorkspace .thread{padding-top:28px}.cleanWorkspace .message>div{font-size:14px}.cleanWorkspace .message.user{padding-left:14px}.cleanWorkspace .artifactTitle h3{font-size:16px}.cleanWorkspace .beforeAfter{grid-template-columns:1fr}.cleanWorkspace .roomArtifact{padding:20px 0 4px}.cleanWorkspace .side{width:236px}}
+@media(prefers-reduced-motion:reduce){.detailPanel,.detailTrigger svg{transition:none}}

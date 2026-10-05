@@ -18,7 +18,7 @@ import { briefSchema } from "../lib/domain";
 import { runRoomTool } from "../lib/artifact-store";
 import { reserveAiCall } from "../lib/ai-budget";
 import { skillInstructions, skillTools } from "../lib/skill-registry";
-import { vettedPrices, retrievedUrls } from "../lib/price-research";
+import { vettedPrices, retrievedUrls, priceResearchJsonSchema } from "../lib/price-research";
 import {
   roomVisualPrompt,
   IMAGE_RESERVATION_CENTS,
@@ -172,7 +172,7 @@ test("material quantities round up packs with coats and waste and never invent m
 test("Excel is a readable workbook with correct quantities, formulas, source links and assumptions", async () => {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(
-    (await materialWorkbook({ ...estimate, plan })) as any,
+    (await materialWorkbook({ ...estimate, plan, priceSources: [{index: 1, price: 12, url: "https://www.leroymerlin.fr/produits/paint", title: "Paint", checkedAt: "2026-10-05", note: "Quoted provider price"}] })) as any,
   );
   const sheet = workbook.getWorksheet("Bill of materials")!;
   assert.equal(sheet.getCell("H5").value, 6);
@@ -185,11 +185,18 @@ test("Excel is a readable workbook with correct quantities, formulas, source lin
     formula: "SUM(L5:L6)",
     result: 230,
   });
-  assert.match((sheet.getCell("N5").value as any).hyperlink, /google.com/);
+  assert.equal(sheet.getCell("N5").value, "Unverified");
+  assert.equal((sheet.getCell("O6").value as any).hyperlink, "https://www.leroymerlin.fr/produits/paint");
   assert.equal(
     workbook.getWorksheet("Assumptions and scope")?.getCell("B1").value,
     "EUR",
   );
+});
+test("provider extraction schema uses supported API formats while keeping strict local URL checks", () => {
+  const schema = priceResearchJsonSchema();
+  assert.equal(schema.additionalProperties, false);
+  assert.equal(schema.properties.products.items.properties.url.format, undefined);
+  assert.ok(schema.properties.products.items.required.includes("sourceEvidence"));
 });
 test("price research retains only retrieved local retailer URLs with matching currency and unit", () => {
   const url = "https://www.leroymerlin.fr/produits/example",
@@ -202,13 +209,17 @@ test("price research retains only retrieved local retailer URLs with matching cu
     currency: "EUR",
     unit: "pack",
     note: "Pack coverage matches",
+    sourceEvidence: "Price: 29 EUR. Coverage: 2.2 m²",
+    coveragePerUnit: 2.2,
+    coverageEvidence: "Coverage: 2.2 m²",
   };
-  assert.equal(vettedPrices({ products: [product] }, estimate, urls).length, 1);
+  assert.equal(vettedPrices({ products: [product] }, estimate, urls, "Price: 29 EUR. Coverage: 2.2 m²").length, 1);
   assert.equal(
     vettedPrices(
       { products: [{ ...product, url: "https://evil.test" }] },
       estimate,
       urls,
+      "Price: 29 EUR. Coverage: 2.2 m²",
     ).length,
     0,
   );
@@ -217,18 +228,19 @@ test("price research retains only retrieved local retailer URLs with matching cu
       { products: [{ ...product, currency: "USD" }] },
       estimate,
       urls,
+      "Price: 29 EUR. Coverage: 2.2 m²",
     ).length,
     0,
   );
   assert.equal(
-    vettedPrices({ products: [{ ...product, unit: "m2" }] }, estimate, urls)
+    vettedPrices({ products: [{ ...product, unit: "m2" }] }, estimate, urls, "Price: 29 EUR. Coverage: 2.2 m²")
       .length,
     0,
   );
-  assert.equal(
-    vettedPrices({ products: [product] }, estimate, new Set()).length,
-    0,
-  );
+  assert.equal(vettedPrices({ products: [product] }, estimate, new Set(), "Price: 29 EUR. Coverage: 2.2 m²").length, 0);
+  assert.equal(vettedPrices({ products: [product] }, estimate, urls, "No price listed").length, 0);
+  assert.equal(vettedPrices({ products: [{...product, url: "https://www.leroymerlin.fr/recherche/?q=tile"}] }, estimate, new Set(["https://www.leroymerlin.fr/recherche/?q=tile"]), "Price: 29 EUR. Coverage: 2.2 m²").length, 0);
+
 });
 test("skills expose validated tools and the image brief locks original structural geometry", () => {
   const tools = skillTools();
@@ -349,8 +361,8 @@ test("2D plans render as safe vector geometry with dimensions and opening legend
     }),
   );
   assert.match(html, /<polygon/);
-  assert.match(html, /4.00 m/);
-  assert.match(html, /3.00 m/);
+  assert.match(html, /≈ 4.0 m/);
+  assert.match(html, /≈ 3.0 m/);
   assert.match(html, /12.00 m²/);
   assert.match(html, /Door/);
   assert.doesNotMatch(html, /<script/);

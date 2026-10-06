@@ -2,6 +2,7 @@ import { z } from "zod";
 import { planSchema, validatePlan, type RoomPlan } from "../room-artifacts";
 const point = z.object({x:z.number().min(0).max(50),y:z.number().min(0).max(50)}).strict();
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const finish = z.enum(["paint","oak","tile","stone","concrete","metal"]);
 const id = z.string().min(1).max(60).regex(/^[a-zA-Z0-9_-]+$/);
 export const cadSchema = z.object({
   title:z.string().min(1).max(120), outline:z.array(point).min(3).max(12),
@@ -9,12 +10,13 @@ export const cadSchema = z.object({
   floorColor:color, wallColor:color, confirmed:z.boolean(),
   openings:z.array(z.object({id,kind:z.enum(["door","window"]),wall:z.number().int().min(0).max(11),offset:z.number().min(0).max(50),width:z.number().min(.1).max(10),height:z.number().min(.1).max(5),sill:z.number().min(0).max(5)}).strict()).max(16),
   fixtures:z.array(z.object({id,label:z.string().min(1).max(80),shape:z.enum(["box","cylinder"]),x:z.number().min(0).max(50),y:z.number().min(0).max(50),z:z.number().min(0).max(10),width:z.number().min(.05).max(15),depth:z.number().min(.05).max(15),height:z.number().min(.05).max(10),rotation:z.number().min(-360).max(360),color}).strict()).max(30),
+  appearance:z.object({floor:finish,wall:finish,fixtures:z.array(z.object({id,material:finish}).strict()).max(30),lighting:z.enum(["daylight","golden","evening","studio"]),brightness:z.number().min(.4).max(1.6)}).strict().optional(),
   assumptions:z.array(z.string().max(600)).max(12),
 }).strict();
 export type RoomCad = z.infer<typeof cadSchema>;
 export type CadDocument = {projectId:string;revision:number;model:RoomCad;updated_at:string;author:"user"|"ai";summary:string};
 export type CadRevision = {revision:number;created_at:string;author:string;summary:string};
-export const cadUpdateSchema = z.object({baseRevision:z.number().int().min(0),changeSummary:z.string().min(1).max(240),model:cadSchema}).strict();
+export const cadUpdateSchema = z.object({baseRevision:z.number().int().min(0),changeSummary:z.string().min(1).max(240),model:cadSchema.omit({appearance:true})}).strict();
 export function cadPlan(model:RoomCad):RoomPlan {
   return {...planSchema.parse({title:model.title,outline:model.outline,ceilingHeight:model.height,openings:model.openings.map(o=>({kind:o.kind,wall:o.wall,offset:o.offset,width:o.width,height:o.height})),fixtures:[],surfaces:[],assumptions:model.assumptions,questions:[]}),confirmed:model.confirmed};
 }

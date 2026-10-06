@@ -26,7 +26,8 @@ export async function runRoomTool(
   if (!owned.rows.length) throw new Error("Room not found.");
   if (name === "update_room_cad") {
     const {model,baseRevision,changeSummary} = cadUpdateSchema.parse(args);
-    const cad = await saveCad(db,owner,projectId,baseRevision,{...model,confirmed:false},"ai",changeSummary);
+    const current = await getCad(db,owner,projectId);
+    const cad = await saveCad(db,owner,projectId,baseRevision,{...model,...(current?.model.appearance?{appearance:current.model.appearance}:{}),confirmed:false},"ai",changeSummary);
     return {id:projectId,kind:"cad",revision:cad.revision,summary:changeSummary};
   }
   let kind: string, data: Record<string, unknown>;

@@ -1,3 +1,5 @@
+import { cadUpdateSchema, cadPlan } from "./cad/model";
+import { getCad, saveCad } from "./cad/store";
 import OpenAI from "openai";
 import { researchMaterialPrices } from "./material-research";
 import { randomUUID } from "node:crypto";
@@ -22,6 +24,11 @@ export async function runRoomTool(
     [projectId, owner],
   );
   if (!owned.rows.length) throw new Error("Room not found.");
+  if (name === "update_room_cad") {
+    const {model,baseRevision,changeSummary} = cadUpdateSchema.parse(args);
+    const cad = await saveCad(db,owner,projectId,baseRevision,{...model,confirmed:false},"ai",changeSummary);
+    return {id:projectId,kind:"cad",revision:cad.revision,summary:changeSummary};
+  }
   let kind: string, data: Record<string, unknown>;
   if (name === "create_room_plan") {
     const plan = planSchema.parse(args);
@@ -44,13 +51,15 @@ export async function runRoomTool(
       "SELECT id,data FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='plan' ORDER BY created_at DESC LIMIT 1",
       [projectId, owner],
     );
-    const plan = (latest.rows[0]?.data || null) as RoomPlan | null;
+    const cad = await getCad(db,owner,projectId);
+    const plan = cad ? cadPlan(cad.model) : (latest.rows[0]?.data || null) as RoomPlan | null;
     const calculations = calculateEstimate(estimate, plan);
     kind = "estimate";
     data = {
       ...estimate,
       plan,
-      planId: latest.rows[0]?.id || null,
+      planId: cad ? null : latest.rows[0]?.id || null,
+      cadRevision: cad?.revision || null,
       calculations,
       priceSources: [],
     };

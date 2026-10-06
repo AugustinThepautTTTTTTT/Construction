@@ -1,4 +1,5 @@
 export type ChatEvent =
+  | {type:"cad";projectId:string;revision:number}
   | { type: "artifact"; id: string }
   | { type: "status"; message: string }
   | { type: "paragraph"; text: string }

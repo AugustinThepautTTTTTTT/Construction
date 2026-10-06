@@ -1,3 +1,5 @@
+import { getCad } from "@/lib/cad/store";
+import { cadPlan } from "@/lib/cad/model";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { identity, error } from "@/lib/server";
@@ -16,11 +18,13 @@ export async function GET(
     if (!z.string().uuid().safeParse(id).success)
       return error("Estimate not found.", 404);
     const result = await db.query(
-      "SELECT data FROM roomwise.artifacts WHERE id=$1 AND user_id=$2 AND kind='estimate'",
+      "SELECT data,project_id FROM roomwise.artifacts WHERE id=$1 AND user_id=$2 AND kind='estimate'",
       [id, user.id],
     );
     if (!result.rows.length) return error("Estimate not found.", 404);
-    return new Response(await materialWorkbook(result.rows[0].data), {
+    const row=result.rows[0],cad=await getCad(db,user.id,row.project_id);
+    const data=cad?{...row.data,plan:cadPlan(cad.model),cadRevision:cad.revision}:row.data;
+    return new Response(await materialWorkbook(data), {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

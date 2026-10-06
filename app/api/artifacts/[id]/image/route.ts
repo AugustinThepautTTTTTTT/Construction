@@ -1,3 +1,4 @@
+import { getCad } from "@/lib/cad/store";
 import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
 import { NextRequest, NextResponse } from "next/server";
@@ -131,10 +132,11 @@ export async function POST(
     const ratio = (meta.width || 1) / (meta.height || 1),
       size =
         ratio > 1.2 ? "1536x1024" : ratio < 0.8 ? "1024x1536" : "1024x1024";
+    const currentCad = await getCad(db,user.id,a.project_id);
     const response = await client.images.edit({
       model: ROOM_IMAGE_MODEL,
       image: await toFile(original, "room.jpg", { type: "image/jpeg" }),
-      prompt: roomVisualPrompt(visual),
+      prompt: roomVisualPrompt(visual,currentCad?.model),
       n: 1,
       size,
       quality: "medium",
@@ -156,6 +158,7 @@ export async function POST(
         JSON.stringify({
           usage: response.usage || null,
           generatedAt: new Date().toISOString(),
+          cadRevision: currentCad?.revision || null,
         }),
         id,
         user.id,

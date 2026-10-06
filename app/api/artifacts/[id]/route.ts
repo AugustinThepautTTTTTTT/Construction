@@ -1,3 +1,5 @@
+import { getCad } from "@/lib/cad/store";
+import { cadPlan } from "@/lib/cad/model";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { identity, sameOrigin, error } from "@/lib/server";
@@ -20,9 +22,14 @@ export async function GET(
     if (!z.string().uuid().safeParse(id).success)
       return error("Deliverable not found.", 404);
     const result = await db.query(
-      'SELECT id,kind,data,status,model,(image IS NOT NULL) AS "hasImage",created_at FROM roomwise.artifacts WHERE id=$1 AND user_id=$2',
+      'SELECT id,project_id,kind,data,status,model,(image IS NOT NULL) AS "hasImage",created_at FROM roomwise.artifacts WHERE id=$1 AND user_id=$2',
       [id, user.id],
     );
+    const artifact=result.rows[0];
+    if(artifact?.kind === "estimate"){
+      const cad=await getCad(db,user.id,artifact.project_id);
+      if(cad){artifact.data={...artifact.data,plan:cadPlan(cad.model),cadRevision:cad.revision};artifact.data.calculations=calculateEstimate(artifact.data,artifact.data.plan);}
+    }
     return result.rows.length
       ? NextResponse.json(
           { artifact: result.rows[0] },

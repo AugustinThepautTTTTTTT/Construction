@@ -1,7 +1,7 @@
 import type { Message } from "./domain";
 import type { Queryable } from "./repository";
 export const LUNA_MODEL = "gpt-6-luna";
-// Conservative reservation per Luna pass: bounded text/history and 4,000 output tokens,
+// Conservative reservation per Luna pass: bounded text/history and 6,000 output tokens,
 // standard Luna pricing. No retries or refunds after ambiguous failures.
 // Image edits reserve 50 cents; bounded price research reserves 20 cents.
 // The 5-cent allowance greatly exceeds the documented cost of a bounded call.

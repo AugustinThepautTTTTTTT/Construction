@@ -15,7 +15,7 @@ const specs = [
     folder: "improve-room-photo",
     name: "prepare_room_visual",
     description:
-      "Prepare a before/after concept card using an uploaded photo. Generation requires the user's button click; this tool never generates images.",
+      "Prepare a before/after concept card using an uploaded photo. The app automatically dispatches one bounded image edit after this tool saves the requested design. Do not claim it is finished until ready.",
     schema: visualSchema,
   },
   {
@@ -36,8 +36,8 @@ export function skillInstructions() {
     )
     .join("\n\n");
 }
-export function skillTools() {
-  return specs.map((s) => {
+export function skillTools(options?:{layout:boolean}) {
+  return specs.filter(s=>options?.layout!==false||s.name!=="update_room_cad").map((s) => {
     const { $schema, ...parameters } = s.schema.toJSONSchema({ io: "input" });
     return {
       type: "function" as const,

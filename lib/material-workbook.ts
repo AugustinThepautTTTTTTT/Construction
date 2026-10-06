@@ -1,4 +1,6 @@
 import ExcelJS from "exceljs";
+import { materialPresentation } from "./material-presentation";
+import type { Artifact } from "./room-artifacts";
 import {
   calculateEstimate,
   type Estimate,
@@ -10,6 +12,7 @@ export async function materialWorkbook(
 ) {
   const calculated = calculateEstimate(data, data.plan || null),
     workbook = new ExcelJS.Workbook();
+  const presentation=materialPresentation({data:{...data,calculations:calculated}} as Artifact);
   workbook.creator = "Roomwise";
   workbook.created = new Date();
   const sheet = workbook.addWorksheet("Bill of materials", {
@@ -20,7 +23,7 @@ export async function materialWorkbook(
     `${data.city}, ${data.country} · ${data.currency} · ${calculated.provisional ? "Provisional measurements" : "User-confirmed measurements"}`,
   ]);
   sheet.addRow([
-    "Planning estimate. Check pack coverage, prices, delivery and professional quotes before buying.",
+    "Sourced items use researched product prices; unverified items use allowances. Check pack coverage, current prices, delivery and professional quotes before buying.",
   ]);
   sheet.addRow([
     "Item",
@@ -42,8 +45,9 @@ export async function materialWorkbook(
     "Checked",
     "Source note",
   ]);
-  for (const item of calculated.items) {
-    const source = data.priceSources?.find((s) => s.index === item.index);
+  for (const item of presentation.rows) {
+    const source = item.source;
+    const unitLow=source?.price ?? item.priceLow,unitHigh=source?.price ?? item.priceHigh;
     sheet.addRow([
       item.item,
       item.specification,
@@ -54,15 +58,15 @@ export async function materialWorkbook(
       item.coveragePerUnit ?? "",
       item.quantity,
       item.unit,
-      item.priceLow,
-      item.priceHigh,
+      unitLow,
+      unitHigh,
       {
         formula: `H${sheet.rowCount + 1}*J${sheet.rowCount + 1}`,
-        result: item.low,
+        result: source ? item.subtotal : item.low,
       },
       {
         formula: `H${sheet.rowCount + 1}*K${sheet.rowCount + 1}`,
-        result: item.high,
+        result: source ? item.subtotal : item.high,
       },
       source ? new URL(source.url).hostname : "Unverified",
       source ? { text: source.title, hyperlink: source.url } : "",
@@ -84,8 +88,8 @@ export async function materialWorkbook(
     data.currency,
     null,
     null,
-    { formula: `SUM(L5:L${end})`, result: calculated.low },
-    { formula: `SUM(M5:M${end})`, result: calculated.high },
+    { formula: `SUM(L5:L${end})`, result: presentation.low },
+    { formula: `SUM(M5:M${end})`, result: presentation.high },
   ]);
   sheet.autoFilter = {
     from: { row: 4, column: 1 },

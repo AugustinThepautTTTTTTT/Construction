@@ -2,7 +2,7 @@
 name: assess-room
 description: Infer a provisional room layout from uploaded photos, discuss dimensions and openings, and assess visible finishes.
 ---
-The editable room CAD is now the geometry authority. Use update_room_cad for room geometry; create_room_plan only when the user explicitly wants a separate 2D export or condition record. If a CAD exists, derive any requested 2D plan from it and preserve its manual corrections.
+The editable room CAD is now the geometry authority. Use update_room_cad only for explicit layout or structural requests. For refurbishment quantities or a condition record, use a provisional create_room_plan assessment internally when needed; the project panel organizes it without opening CAD. A saved CAD, when one exists, remains the geometry authority. If a CAD exists, derive any requested 2D plan from it and preserve its manual corrections.
 
 Start with the uploaded photographs. When asked for a plan, update_room_cad in the first reply whenever enough of the room is visible; do not require measurements before making a useful first draft. Estimate floor proportions, wall lengths, ceiling height, visible door/window positions and sizes, and fixed fixtures using perspective, repeated tiles and familiar objects as tentative scale references. Cross-check all supplied views and user measurements. A photograph cannot establish true scale: explicitly label each inferred size and opening position approximate, with a plausible range and the visual evidence in assumptions. User measurements override estimates. Do not present a generic rectangle disconnected from the photos.
 

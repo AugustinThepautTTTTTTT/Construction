@@ -62,11 +62,12 @@ export async function POST(
     if (!user.pro_active && !a.paid)
       return error("A Room Pass or Pro is required for image concepts.", 402);
     if (a.image) return NextResponse.json({ ready: true });
+    const rejectQueued=async(message:string,status=400)=>{if(a.status==="queued")await db.query("UPDATE roomwise.artifacts SET status='failed',data=data || $1::jsonb WHERE id=$2 AND user_id=$3 AND status='queued'",[JSON.stringify({generationError:message}),id,user.id]);return error(message,status);};
     const policy = aiPolicy();
     if (!policy)
-      return error("Image generation is unavailable or this PoC has expired.");
+      return rejectQueued("Image generation is unavailable or this PoC has expired.");
     if (!(await rateLimit(`visual:${user.id}`, 4, 86400)))
-      return error("You have reached today's concept limit.", 429);
+      return rejectQueued("You have reached today's concept limit.", 429);
     const visual = visualSchema.parse({
         title: a.data.title,
         sourcePhotoId: a.data.sourcePhotoId,
@@ -78,7 +79,7 @@ export async function POST(
         "SELECT data FROM roomwise.photos WHERE id=$1 AND user_id=$2 AND project_id=$3",
         [visual.sourcePhotoId, user.id, a.project_id],
       );
-    if (!photo.rows.length) return error("Original room photo not found.", 404);
+    if (!photo.rows.length) return rejectQueued("Original room photo not found.", 404);
     const c = await db.connect();
     try {
       await c.query("BEGIN");
@@ -95,7 +96,7 @@ export async function POST(
       );
       if (count.rows[0].n >= 2) {
         await c.query("ROLLBACK");
-        return error(
+        return rejectQueued(
           "This room has reached its limit of two image concepts.",
           429,
         );
@@ -170,8 +171,8 @@ export async function POST(
     if (artifactId && db)
       await db
         .query(
-          "UPDATE roomwise.artifacts SET status='failed' WHERE id=$1 AND user_id=$2",
-          [artifactId, owner],
+          "UPDATE roomwise.artifacts SET status='failed',data=data || $3::jsonb WHERE id=$1 AND user_id=$2",
+          [artifactId, owner,JSON.stringify({generationError:e instanceof Error&&e.message==="BUDGET_EXHAUSTED"?"The shared PoC AI budget has been reached.":"The concept could not be generated. Your design brief is saved."})],
         )
         .catch(() => {});
     console.error("Roomwise image generation failed", {

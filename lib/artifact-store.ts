@@ -78,6 +78,7 @@ export async function runRoomTool(
     "INSERT INTO roomwise.artifacts(id,user_id,project_id,kind,data,model) VALUES($1,$2,$3,$4,$5::jsonb,'gpt-6-luna')",
     [id, owner, projectId, kind, JSON.stringify(data)],
   );
+  if(kind === "visual")await db.query("UPDATE roomwise.artifacts SET status='queued' WHERE id=$1 AND user_id=$2",[id,owner]);
   let products: unknown[] = [], researchNotice = "";
   if (kind === "estimate") {
     try { products = await researchMaterialPrices(db, owner, id, data); }
@@ -94,6 +95,6 @@ export async function runRoomTool(
         ? "2D plan and material assessment saved; dimensions await user confirmation."
         : kind === "estimate"
           ? "Bill saved with quantities and Excel export. Only products in products have verified provider links/prices; all other lines are estimated allowances. Discuss unmatched items instead of claiming a fully sourced basket."
-          : "Before/after brief saved. The user can generate one concept on its card; no image has been generated yet.",
+          : "Before/after design saved and queued. The application automatically starts one image edit for eligible paid accounts and puts it in the project visual folder. Do not say it is finished yet.",
   };
 }

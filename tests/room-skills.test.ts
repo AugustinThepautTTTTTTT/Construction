@@ -183,8 +183,10 @@ test("Excel is a readable workbook with correct quantities, formulas, source lin
   });
   assert.deepEqual(sheet.getCell("L7").value, {
     formula: "SUM(L5:L6)",
-    result: 230,
+    result: 246,
   });
+  assert.equal(sheet.getCell("J6").value, 12);
+  assert.equal(sheet.getCell("K6").value, 12);
   assert.equal(sheet.getCell("N5").value, "Unverified");
   assert.equal((sheet.getCell("O6").value as any).hyperlink, "https://www.leroymerlin.fr/produits/paint");
   assert.equal(

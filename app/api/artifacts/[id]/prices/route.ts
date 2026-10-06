@@ -1,3 +1,4 @@
+import { projectGeometry } from "@/lib/project-geometry";
 import OpenAI from "openai";
 import { researchMaterialPrices } from "@/lib/material-research";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +20,7 @@ export async function POST(
     if (!z.string().uuid().safeParse(id).success)
       return error("Estimate not found.", 404);
     const result = await db.query(
-      "SELECT a.data,p.paid FROM roomwise.artifacts a JOIN roomwise.projects p ON p.id=a.project_id WHERE a.id=$1 AND a.user_id=$2 AND a.kind='estimate'",
+      "SELECT a.data,a.project_id,p.paid FROM roomwise.artifacts a JOIN roomwise.projects p ON p.id=a.project_id WHERE a.id=$1 AND a.user_id=$2 AND a.kind='estimate'",
       [id, user.id],
     );
     if (!result.rows.length) return error("Estimate not found.", 404);
@@ -28,7 +29,9 @@ export async function POST(
         "A Room Pass or Pro is required for live price research.",
         402,
       );
-    const sources = await researchMaterialPrices(db, user.id, id, result.rows[0].data);
+    const row=result.rows[0],geometry=await projectGeometry(db,user.id,row.project_id);
+    const data=geometry?{...row.data,...geometry}:row.data;
+    const sources = await researchMaterialPrices(db, user.id, id, data);
     return NextResponse.json({ count: sources.length });
   } catch (e) {
     console.error("Roomwise price research failed", {

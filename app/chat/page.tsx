@@ -1,8 +1,9 @@
 "use client";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
-import { Box } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import type { ProjectTab,ProjectHighlight } from "@/components/project-panel";
+import { FolderOpen } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
   Paperclip,
@@ -19,7 +20,7 @@ import { ChatMessage } from "@/components/chat-message";
 import { preparePhoto, PHOTO_LIMITS, type DraftPhoto } from "@/lib/photos";
 import { readChatStream } from "@/lib/chat-stream";
 import { api } from "@/lib/browser-storage";
-const CadStudio = dynamic(() => import("@/components/cad/studio").then(m=>m.CadStudio),{ssr:false,loading:()=> <aside className="cadStudio cadEmpty">Opening your room studio…</aside>});
+const ProjectPanel=dynamic(()=>import("@/components/project-panel").then(m=>m.ProjectPanel),{ssr:false,loading:()=> <aside className="projectPanel projectBlank">Opening your project…</aside>});
 type Capabilities = {
   ai: boolean;
   checkout: boolean;
@@ -36,7 +37,7 @@ export default function ChatPage() {
   const [cap, setCap] = useState(initial),
     [projects, setProjects] = useState<Project[]>([]),
     [active, setActive] = useState("");
-  const [cadOpen,setCadOpen]=useState(false),[cadSignal,setCadSignal]=useState(0),[cadDirty,setCadDirty]=useState(false);
+  const [projectSignal,setProjectSignal]=useState(0),[panelFocus,setPanelFocus]=useState<ProjectTab>("visuals"),[projectPanelOpen,setProjectPanelOpen]=useState(false),[highlight,setHighlight]=useState<ProjectHighlight>(null),[cadDirty,setCadDirty]=useState(false);
   const [input, setInput] = useState(""),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
@@ -64,6 +65,7 @@ export default function ChatPage() {
   const project = projects.find((p) => p.id === active),
     empty = !project?.messages.length;
   const unlocked = Boolean(cap.user?.pro_active || project?.paid);
+  const openArtifact=useCallback((id:string)=>{if(cadDirty){setNotice("Save or discard your layout edits first.");return;}setHighlight(prev=>({id,version:(prev?.version||0)+1}));setProjectPanelOpen(true);setProjectSignal(s=>s+1);},[cadDirty]);
   async function refresh() {
     const [session, data] = await Promise.all([
       api("/api/session"),
@@ -190,7 +192,7 @@ export default function ChatPage() {
   }
   function newChat() {
     if(cadDirty){setNotice("Save or discard your room edits before switching chats.");return;}
-    setCadOpen(false);
+    setProjectPanelOpen(false);setPanelFocus("visuals");setHighlight(null);
     if (busy || preparing) return;
     clearPhotos();
     setActive("");
@@ -266,6 +268,7 @@ export default function ChatPage() {
         throw new Error(data.error || "Could not start your reply.");
       }
 
+      setSidebar(false);
       const updated = {
         ...p!,
         title: p!.messages.length ? p!.title : text.slice(0, 60),
@@ -288,7 +291,8 @@ export default function ChatPage() {
       clearPhotos();
       setProgress("Reviewing your room and request…");
       await readChatStream(response, (event) => {
-        if(event.type === "cad"){setCadSignal(s=>s+1);setCadOpen(true);}
+        if(event.type === "cad"){setProjectSignal(s=>s+1);setPanelFocus("layout");setProjectPanelOpen(true);setSidebar(false);}
+        if(event.type === "artifact"){setProjectSignal(s=>s+1);setPanelFocus(event.kind === "estimate"?"materials":"visuals");setProjectPanelOpen(true);setSidebar(false);setHighlight(null);}
         if (event.type === "status") setProgress(event.message);
         if (event.type === "artifact")
           setProjects((list) =>
@@ -337,7 +341,7 @@ export default function ChatPage() {
       );
     } finally {
       try {
-        await refresh();
+        await refresh();setProjectSignal(s=>s+1);
       } catch {}
       setBusy(false);
       setProgress("");
@@ -494,7 +498,7 @@ export default function ChatPage() {
     </form>
   );
   return (
-    <main className={`workspace cleanWorkspace ${cadOpen&&project?"withCad":""}`}>
+    <main className={`workspace cleanWorkspace projectWorkspace ${project?"withProject":""}`}>
       {sidebar && (
         <Button
           className="historyBackdrop"
@@ -502,9 +506,9 @@ export default function ChatPage() {
           onClick={() => setSidebar(false)}
         />
       )}
-      <aside className={sidebar ? "side open" : "side"}>
-        <Link href="/" className="brand">
-          <span className="brandMark">R</span>roomwise
+      <aside id="roomwise-history" className={sidebar ? "side open" : "side"}>
+        <Link href="/" className="brand" aria-label="Roomwise home">
+          <span className="brandMark">R</span><span className="brandName">roomwise</span>
         </Link>
         <Button
           className="newChatButton"
@@ -513,6 +517,7 @@ export default function ChatPage() {
         >
           <Plus size={17} /> New chat
         </Button>
+        <Button className="railHistory" aria-label="Open saved chats" onClick={()=>setSidebar(!sidebar)}><Menu size={18}/></Button>
         <p className="sideLabel">CHAT HISTORY</p>
         <div className="projectList">
           {projects
@@ -525,7 +530,7 @@ export default function ChatPage() {
                 onClick={() => {
                   clearPhotos();
                   if(cadDirty){setNotice("Save or discard your room edits before switching chats.");return;}
-                  setActive(p.id);
+                  setActive(p.id);setPanelFocus("visuals");setProjectPanelOpen(false);setHighlight(null);
                   setInput("");
                   setNotice("");
                   setPaywall(false);
@@ -557,6 +562,8 @@ export default function ChatPage() {
           <Button
             className="menu"
             aria-label="Open chat history"
+            aria-expanded={sidebar}
+            aria-controls="roomwise-history"
             onClick={() => setSidebar(!sidebar)}
           >
             <Menu size={18} />
@@ -569,7 +576,7 @@ export default function ChatPage() {
                   ?.content.slice(0, 55) || "Your chat"}
           </span>
           <div className="workspaceActions">
-            {project&&<Button className="openCad" aria-pressed={cadOpen} onClick={()=>{if(cadDirty&&cadOpen){setNotice("Save or discard your room edits before closing.");return;}setCadOpen(!cadOpen);}}><Box size={16}/><span>Room model</span></Button>}
+            {project&&<Button className="openProject" aria-label="Open project panel" onClick={()=>{setProjectPanelOpen(true);setSidebar(false);}}><FolderOpen size={16}/><span>Your project</span></Button>}
             {!empty && (
               <Button onClick={download} aria-label="Download plan">
                 <Download size={16} />
@@ -616,7 +623,7 @@ export default function ChatPage() {
           <>
             <div className="thread" ref={thread}>
               {project?.messages.map((m, i) => (
-                <ChatMessage key={i} message={m} />
+                <ChatMessage key={i} message={m} onOpenArtifact={openArtifact} />
               ))}
               {busy && (
                 <div className="thinking" role="status" aria-live="polite">
@@ -654,7 +661,7 @@ export default function ChatPage() {
           work.
         </p>
       </section>
-      {cadOpen&&project&&<CadStudio key={project.id} projectId={project.id} signal={cadSignal} busy={busy} onDirtyChange={setCadDirty} onClose={()=>{if(cadDirty){setNotice("Save or discard your room edits before closing.");return;}setCadOpen(false);}} onAsk={text=>{setInput(text);composer.current?.focus();}}/>}
+      {project&&<ProjectPanel key={project.id} projectId={project.id} signal={projectSignal} focus={panelFocus} highlight={highlight} mobileOpen={projectPanelOpen} busy={busy} unlocked={unlocked} onDirtyChange={setCadDirty} onClose={()=>setProjectPanelOpen(false)} onAsk={text=>{setInput(text);setSidebar(false);setProjectPanelOpen(false);composer.current?.focus();}}/>}
     </main>
   );
 }

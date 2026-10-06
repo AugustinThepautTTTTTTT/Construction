@@ -113,7 +113,7 @@ export type Artifact = {
   id: string;
   kind: "plan" | "estimate" | "visual";
   data: any;
-  status: "ready" | "running" | "failed";
+  status: "ready" | "queued" | "running" | "failed";
   model?: string;
   hasImage?: boolean;
   created_at: string;

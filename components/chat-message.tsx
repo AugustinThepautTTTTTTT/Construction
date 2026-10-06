@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RoomArtifact } from "./room-artifact";
 import type { Message } from "@/lib/domain";
-function MessageView({ message }: { message: Message }) {
+function MessageView({ message,onOpenArtifact }: { message: Message;onOpenArtifact?:(id:string)=>void }) {
   return (
     <article className={`message ${message.role}`}>
       <span>{message.role === "user" ? "You" : "Roomwise"}</span>
@@ -47,7 +47,7 @@ function MessageView({ message }: { message: Message }) {
           <p className="userText">{message.content}</p>
         )}
         {message.artifactIds?.map((id) => (
-          <RoomArtifact key={id} id={id} />
+          onOpenArtifact?<button key={id} className="projectSavedLink" onClick={()=>onOpenArtifact(id)}>View saved project item <span>↗</span></button>:<RoomArtifact key={id} id={id} />
         ))}
         {message.status === "failed" && (
           <small className="replyState">

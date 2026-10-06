@@ -1,5 +1,4 @@
-import { getCad } from "@/lib/cad/store";
-import { cadPlan } from "@/lib/cad/model";
+import { projectGeometry } from "@/lib/project-geometry";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { identity, sameOrigin, error } from "@/lib/server";
@@ -27,8 +26,8 @@ export async function GET(
     );
     const artifact=result.rows[0];
     if(artifact?.kind === "estimate"){
-      const cad=await getCad(db,user.id,artifact.project_id);
-      if(cad){artifact.data={...artifact.data,plan:cadPlan(cad.model),cadRevision:cad.revision};artifact.data.calculations=calculateEstimate(artifact.data,artifact.data.plan);}
+      const geometry=await projectGeometry(db,user.id,artifact.project_id);
+      if(geometry){artifact.data={...artifact.data,...geometry};artifact.data.calculations=calculateEstimate(artifact.data,artifact.data.plan);}
     }
     return result.rows.length
       ? NextResponse.json(

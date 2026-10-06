@@ -1,0 +1,21 @@
+"use client";
+import { Button } from "@base-ui-components/react/button";
+import { Check,Download,ExternalLink,RefreshCw } from "lucide-react";
+import { materialPresentation,money,productUrl,retailerName } from "@/lib/material-presentation";
+import type { Artifact } from "@/lib/room-artifacts";
+export function ProjectMaterials({artifact,onAsk,onRefresh,refreshing}:{artifact:Artifact;onAsk:(text:string)=>void;onRefresh:()=>void;refreshing:boolean}){
+ const bill=materialPresentation(artifact),fmt=(n:number)=>money(n,bill.currency),range=(a:number,b:number)=>a===b?fmt(a):`${fmt(a)} – ${fmt(b)}`;
+ return <div className="projectMaterials"><div className="projectBudget"><small>YOUR MATERIALS BUDGET</small><strong>{range(bill.low,bill.high)}</strong><p>{artifact.data.city?`${artifact.data.city}, `:""}{artifact.data.country} · {bill.verifiedCount} sourced {bill.verifiedCount===1?"product":"products"} of {bill.rows.length} items</p><div><span>Sourced products<b>{fmt(bill.sourced)}</b></span>{bill.rows.length>bill.verifiedCount&&<span>Estimated allowances<b>{range(bill.allowanceLow,bill.allowanceHigh)}</b></span>}</div></div>
+ <div className="projectBillActions"><a href={`/api/artifacts/${artifact.id}/export`}><Download size={14}/>Excel bill</a><Button disabled={refreshing} onClick={onRefresh}><RefreshCw size={13}/>{refreshing?"Checking providers…":"Refresh prices"}</Button></div>
+ <p className="projectQuantityNote">{artifact.data.calculations?.provisional?"Quantities use provisional measurements.":"Quantities use your confirmed measurements."} Pack coverage and waste are calculated automatically.</p>
+ <div className="projectProductList">{bill.rows.map((row:any)=>{const source=row.source,url=source?productUrl(source.url):null;return <article key={row.index} className="projectProduct"><div className="productTop"><span className="productNumber">{String(row.index+1).padStart(2,"0")}</span><div><h3>{row.item}</h3><p>{row.specification}</p></div><span className={`productPriceStatus ${source?"sourced":""}`}>{source?<><Check size={11}/>Sourced</>:"Allowance"}</span></div>
+ {source&&<p className="productMatch">{source.title}</p>}
+ <div className="productFigures"><div><small>Quantity to buy</small><b>{row.quantity} {row.unit}</b></div><div><small>{source?"Unit price":"Unit allowance"}</small><b>{source?fmt(source.price):range(row.priceLow,row.priceHigh)}</b></div><div><small>Subtotal</small><b>{source?fmt(row.subtotal):range(row.low,row.high)}</b></div></div>
+ {url?<a className="productShop" href={url} target="_blank" rel="noopener noreferrer">View at {retailerName(url)}<ExternalLink size={13}/></a>:<div className="productUnsourced"><p>A matching retailer product has not been verified yet.</p><Button onClick={()=>onAsk(`Find a real local provider product for ${row.item}: ${row.specification}. I need ${row.quantity} ${row.unit}, in ${artifact.data.city||""} ${artifact.data.country}, priced in ${bill.currency}. Use retrieved product pages and source evidence; retain the other items in my bill.`)}>Find a matching product</Button></div>}
+ {source?.checkedAt&&Number.isFinite(Date.parse(source.checkedAt))&&<small className="productChecked">Price checked {new Date(source.checkedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}. Confirm the current checkout price and delivery.</small>}
+ <details className="productQuantity"><summary>How the quantity is calculated</summary><p>{row.base.toFixed(2)} basis × {row.coats} {row.coats===1?"coat":"coats"} + {Math.round(row.waste*100)}% waste{row.coveragePerUnit?` · ${row.coveragePerUnit} coverage per ${row.unit}`:""}.</p>{source?.note&&<p>{source.note}</p>}</details></article>;})}</div>
+ {artifact.data.researchNotice&&<p className="projectFootnote">{artifact.data.researchNotice}</p>}
+ {!!artifact.data.exclusions?.length&&<details className="projectExclusions"><summary>What the budget excludes</summary><ul>{artifact.data.exclusions.map((e:string,i:number)=><li key={i}>{e}</li>)}</ul></details>}
+ {!!artifact.data.assumptions?.length&&<details className="projectExclusions"><summary>Planning assumptions</summary><ul>{artifact.data.assumptions.map((e:string,i:number)=><li key={i}>{e}</li>)}</ul></details>}
+ </div>;
+}

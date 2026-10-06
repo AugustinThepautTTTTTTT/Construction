@@ -1,5 +1,4 @@
-import { getCad } from "@/lib/cad/store";
-import { cadPlan } from "@/lib/cad/model";
+import { projectGeometry } from "@/lib/project-geometry";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { identity, error } from "@/lib/server";
@@ -22,8 +21,8 @@ export async function GET(
       [id, user.id],
     );
     if (!result.rows.length) return error("Estimate not found.", 404);
-    const row=result.rows[0],cad=await getCad(db,user.id,row.project_id);
-    const data=cad?{...row.data,plan:cadPlan(cad.model),cadRevision:cad.revision}:row.data;
+    const row=result.rows[0],geometry=await projectGeometry(db,user.id,row.project_id);
+    const data=geometry?{...row.data,...geometry}:row.data;
     return new Response(await materialWorkbook(data), {
       headers: {
         "Content-Type":

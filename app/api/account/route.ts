@@ -1,3 +1,4 @@
+import {stripeKeyConfigured,stripeMode} from "@/lib/stripe-mode";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { database } from "@/lib/database";
@@ -20,6 +21,7 @@ export async function GET(r: NextRequest) {
     stats: stats.rows[0],
     billingAvailable: Boolean(billing.rows[0]?.stripe_customer_id),
     subscription: Boolean(billing.rows[0]?.subscription_id),
+    stripeMode: stripeMode(),
   });
 }
 export async function POST(r: NextRequest) {

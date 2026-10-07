@@ -1,3 +1,4 @@
+import {stripeKeyConfigured,stripeMode} from "@/lib/stripe-mode";
 import { mailConfigured } from "@/lib/mail";
 import { googleConfigured } from "@/lib/google-auth";
 import { aiPolicy } from "@/lib/ai-budget";
@@ -15,7 +16,7 @@ export async function GET() {
   } catch {
     databaseStatus = "unavailable";
   }
-  const testKey = /^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY || "");
+  const testKey = stripeKeyConfigured();
   return NextResponse.json(
     {
       status: databaseStatus === "unavailable" ? "degraded" : "ok",
@@ -37,7 +38,7 @@ export async function GET() {
             process.env.STRIPE_BASIC_PRICE_ID && process.env.STRIPE_PRO_PRICE_ID &&
             databaseStatus === "connected",
           ),
-        stripeMode: "test",
+        stripeMode: stripeMode(),
         email: mailConfigured() && databaseStatus === "connected",
         google: googleConfigured() && databaseStatus === "connected",
         credits: databaseStatus === "connected",

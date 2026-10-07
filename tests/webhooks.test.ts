@@ -38,3 +38,17 @@ test("verified test event is accepted but altered and live payloads are rejected
   });
   assert.throws(() => mod.verifyTestEvent(live, liveSignature, secret));
 });
+
+// Catch accepting an event from the wrong deployment's Stripe mode.
+test('live webhooks require live configuration and still verify signatures', () => {
+ const old=process.env.STRIPE_MODE;process.env.STRIPE_MODE='live';
+ try {
+  const live=JSON.stringify({id:'evt_live',object:'event',type:'invoice.paid',livemode:true,data:{object:{}}});
+  const stripe=new Stripe('sk_test_fixture');
+  const signature=stripe.webhooks.generateTestHeaderString({payload:live,secret});
+  assert.equal(mod.verifyTestEvent(live,signature,secret).id,'evt_live');
+  assert.throws(()=>mod.verifyTestEvent(live+' ',signature,secret));
+  const testSignature=stripe.webhooks.generateTestHeaderString({payload,secret});
+  assert.throws(()=>mod.verifyTestEvent(payload,testSignature,secret));
+ } finally {if(old===undefined)delete process.env.STRIPE_MODE;else process.env.STRIPE_MODE=old;}
+});

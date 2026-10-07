@@ -1,3 +1,4 @@
+import {stripeKeyConfigured,stripeMode} from "@/lib/stripe-mode";
 import {mailConfigured} from "@/lib/mail";
 import {googleConfigured} from "@/lib/google-auth";
 import { aiPolicy } from "@/lib/ai-budget";
@@ -17,7 +18,7 @@ function capabilities() {
     storage: databaseConfigured() ? "cloud" : "local",
     checkout: Boolean(
       databaseConfigured() &&
-      /^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY || "") &&
+      stripeKeyConfigured() &&
       process.env.STRIPE_WEBHOOK_SECRET &&
       process.env.STRIPE_BASIC_PRICE_ID,
     ),

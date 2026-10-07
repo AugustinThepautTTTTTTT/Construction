@@ -7,7 +7,7 @@ import { api } from "@/lib/browser-storage";
 export type Account = {
   user: { id: string; email: string; name: string; pro_active: boolean; email_verified: boolean; plan: "free"|"basic"|"pro"; credits: number };
   usage?: {delta:number;description:string;created_at:string}[];
-  stats: { rooms: number; unlocked: number }; billingAvailable: boolean; subscription: boolean;
+  stats: { rooms: number; unlocked: number }; billingAvailable: boolean; subscription: boolean; stripeMode?: "test" | "live";
 };
 function SettingsIcon({ name }: { name: "general" | "security" | "close" }) {
   const size = name === "general" ? [10, 9] : name === "security" ? [9, 9] : [6, 7];
@@ -52,7 +52,7 @@ export function AccountSettings({ account, mail, onSaved, onLogout }: {
       </> : <><h2>Plan & billing</h2><p className="settingsIntro">Manage access to your room projects.</p>
         <div className="settingsRow"><span>Current plan</span><span className="settingsPlanBadge">{account.user.plan[0].toUpperCase()+account.user.plan.slice(1)}</span></div>
         <div className="settingsRow"><span>Credits available</span><span className="settingsValue">{account.user.credits}</span></div>
-        <div className="settingsRow"><div><span>Payments & subscription</span><small>Stripe test mode · no real charges</small></div><Button className="settingsPill" disabled={busy || !account.billingAvailable} onClick={() => void action(async () => { const result = await api("/api/billing/portal", {}); window.location.assign(result.url); })}>Manage billing</Button></div>
+        <div className="settingsRow"><div><span>Payments & subscription</span><small>{account.stripeMode === "live" ? "Secure payments with Stripe" : "Stripe test mode · no real charges"}</small></div><Button className="settingsPill" disabled={busy || !account.billingAvailable} onClick={() => void action(async () => { const result = await api("/api/billing/portal", {}); window.location.assign(result.url); })}>Manage billing</Button></div>
         {!account.billingAvailable && <p className="settingsHint">Billing becomes available after your first checkout.</p>}
         {account.user.plan !== "pro" && <div className="settingsRow"><div><span>More room to create</span><small>350 credits each month for multiple projects.</small></div><Link href="/purchase?plan=pro" className="settingsPill">Explore Pro</Link></div>}
         <p className="settingsHint">Message · 1 credit &nbsp; Concept image · 2 credits &nbsp; Product search · 4 credits. Images and searches use credits in addition to the chat message. Unused credits carry over.</p>

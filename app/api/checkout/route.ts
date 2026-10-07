@@ -1,3 +1,4 @@
+import {stripeLive} from '@/lib/stripe-mode';
 import {NextRequest,NextResponse} from 'next/server';
 import {z} from 'zod';
 import {database,rateLimit} from '@/lib/database';
@@ -17,7 +18,7 @@ export async function POST(r:NextRequest){
   if(!await rateLimit(`checkout:${user.id}`,10,3600))return error('Please wait before trying checkout again.',429);
   const price=parsed.data.plan==='basic'?process.env.STRIPE_BASIC_PRICE_ID:process.env.STRIPE_PRO_PRICE_ID;
   if(!price||!process.env.STRIPE_WEBHOOK_SECRET)return error('This subscription is temporarily unavailable.');
-  const p=await stripe.prices.retrieve(price);if(p.livemode||!p.active||p.currency!=='usd'||p.unit_amount!==(parsed.data.plan==='basic'?500:5000)||p.recurring?.interval!=='month')throw new Error('Invalid price');
+  const p=await stripe.prices.retrieve(price);if(p.livemode!==stripeLive()||!p.active||p.currency!=='usd'||p.unit_amount!==(parsed.data.plan==='basic'?500:5000)||p.recurring?.interval!=='month')throw new Error('Invalid price');
   let customer=row.stripe_customer_id;
   if(!customer){const created=await stripe.customers.create({email:user.email,metadata:{roomwise_user_id:user.id}},{idempotencyKey:`roomwise-customer-${user.id}`});customer=(await db.query('UPDATE roomwise.users SET stripe_customer_id=COALESCE(stripe_customer_id,$1) WHERE id=$2 RETURNING stripe_customer_id',[created.id,user.id])).rows[0].stripe_customer_id;}
   const project=parsed.data.projectId?`project=${parsed.data.projectId}&`:'';

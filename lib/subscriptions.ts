@@ -1,9 +1,10 @@
 import Stripe from 'stripe';
+import {stripeKeyConfigured,stripeLive} from './stripe-mode';
 import type {Queryable} from './repository';
 import {grantInvoiceCredits,creditAccount,type Plan} from './credits';
 export function stripeClient() {
   const key=process.env.STRIPE_SECRET_KEY;
-  if(!key || !/^(sk|rk)_test_/.test(key))throw new Error('Test billing is not configured.');
+  if(!key || !stripeKeyConfigured())throw new Error('Billing is not configured.');
   return new Stripe(key,{timeout:15000,maxNetworkRetries:0});
 }
 export function pricePlan(id:string):Exclude<Plan,'free'>|null {
@@ -13,7 +14,7 @@ export async function syncSubscription(db:Queryable,stripe:Stripe,id:string) {
   const sub=await stripe.subscriptions.retrieve(id);
   const customer=typeof sub.customer==='string'?sub.customer:sub.customer.id;
   const plan=pricePlan(sub.items.data[0]?.price.id);
-  if(!plan || sub.livemode || sub.items.data.length!==1) return null;
+  if(!plan || sub.livemode!==stripeLive() || sub.items.data.length!==1) return null;
   const owner=sub.metadata.ownerId;
   const account=await db.query('SELECT id,subscription_id FROM roomwise.users WHERE id=$1 AND stripe_customer_id=$2',[owner,customer]);
   if(!account.rows[0])return null;
@@ -27,7 +28,7 @@ export async function syncSubscription(db:Queryable,stripe:Stripe,id:string) {
 // invoice ID as the ledger key, so a redirect racing the webhook grants only once.
 export async function settleInvoice(db:Queryable,stripe:Stripe,id:string) {
   const invoice=await stripe.invoices.retrieve(id);
-  if(invoice.livemode || invoice.status!=='paid' || invoice.currency!=='usd')return false;
+  if(invoice.livemode!==stripeLive() || invoice.status!=='paid' || invoice.currency!=='usd')return false;
   const subscription=(invoice.parent?.subscription_details?.subscription as string|{id:string}|null);
   const subscriptionId=typeof subscription==='string'?subscription:subscription?.id;
   if(!subscriptionId || !['subscription_create','subscription_cycle','subscription_update'].includes(invoice.billing_reason||''))return false;

@@ -1,3 +1,4 @@
+import { reconcileImageBudget } from "@/lib/visual-recovery";
 import { getCad } from "@/lib/cad/store";
 import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
@@ -167,6 +168,7 @@ export async function POST(
         user.id,
       ],
     );
+    await reconcileImageBudget(db,user.id,id).catch(()=>console.warn("Roomwise image budget settlement deferred"));
     return NextResponse.json({ ready: true });
   } catch (e) {
     const db = await database();

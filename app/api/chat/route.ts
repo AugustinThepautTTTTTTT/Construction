@@ -1,3 +1,4 @@
+import { bindVisualPhoto, VisualSourceError } from "@/lib/visual-recovery";
 import { isLayoutRequest } from "@/lib/project-intent";
 import { getCad, CadConflict } from "@/lib/cad/store";
 import OpenAI from "openai";
@@ -300,7 +301,7 @@ export async function POST(r: NextRequest) {
                       user.id,
                       p.id,
                       call.name,
-                      JSON.parse(call.arguments),
+                      call.name === "prepare_room_visual" ? bindVisualPhoto(JSON.parse(call.arguments), photos.map(photo => photo.id)) : JSON.parse(call.arguments),
                     );
                     const artifact = result as { id: string; kind: string; revision?:number };
                     if(artifact.kind === "cad") {
@@ -319,7 +320,7 @@ export async function POST(r: NextRequest) {
                     emit({ type: "artifact", id: artifact.id,kind:artifact.kind as "visual"|"estimate"|"construction" });
                     }
                   } catch (e) {
-                    result = e instanceof CadConflict ? {error:e.message,currentCad:e.current} : {
+                    result = e instanceof VisualSourceError ? {error:e.message,availablePhotoIds:photos.map(photo=>photo.id)} : e instanceof CadConflict ? {error:e.message,currentCad:e.current} : {
                       error:
                         "The deliverable could not be validated. Check the supplied dimensions, room photo IDs, quantities and location; ask for missing information instead of guessing.",
                     };

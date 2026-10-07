@@ -4,26 +4,31 @@ import "@/components/project-workspace.css";
 import "@/components/chat-artifact.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
-import type { ProjectTab,ProjectHighlight } from "@/components/project-panel";
+import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";
 import { FolderOpen } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowUp,
-  Camera,
-  Download,
-  Plus,
-  Settings,
-  X,
-} from "lucide-react";
+import { ArrowUp, Camera, Download, Plus, Settings, X } from "lucide-react";
 import Link from "next/link";
 import { briefSchema, type Project } from "@/lib/domain";
 import type { Artifact } from "@/lib/room-artifacts";
 import { ChatIcon } from "@/components/chat-icon";
+import { ProjectHistory } from "@/components/project-history";
+import { FolderWorkspace } from "@/components/folder-workspace";
+import { ThreadManager } from "@/components/thread-manager";
+import type { ProjectFolder } from "@/lib/project-folders";
 import { ChatMessage } from "@/components/chat-message";
 import { preparePhoto, PHOTO_LIMITS, type DraftPhoto } from "@/lib/photos";
 import { readChatStream } from "@/lib/chat-stream";
 import { api } from "@/lib/browser-storage";
-const ProjectPanel=dynamic(()=>import("@/components/project-panel").then(m=>m.ProjectPanel),{ssr:false,loading:()=> <aside className="projectPanel projectBlank">Opening your project…</aside>});
+const ProjectPanel = dynamic(
+  () => import("@/components/project-panel").then((m) => m.ProjectPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <aside className="projectPanel projectBlank">Opening your project…</aside>
+    ),
+  },
+);
 type Capabilities = {
   ai: boolean;
   checkout: boolean;
@@ -40,11 +45,28 @@ export default function ChatPage() {
   const [cap, setCap] = useState(initial),
     [projects, setProjects] = useState<Project[]>([]),
     [active, setActive] = useState("");
-  const [projectWidth,setProjectWidth]=useState(380);
-  const [projectSignal,setProjectSignal]=useState(0),[panelFocus,setPanelFocus]=useState<ProjectTab>("visuals"),[projectPanelOpen,setProjectPanelOpen]=useState(false),[highlight,setHighlight]=useState<ProjectHighlight>(null),[cadDirty,setCadDirty]=useState(false);
-  const [projectAssets,setProjectAssets]=useState<{id:string;artifacts:Artifact[]}>({id:"",artifacts:[]});
-  const receiveArtifacts=useCallback((id:string,artifacts:Artifact[])=>setProjectAssets({id,artifacts}),[]);
-  const artifactsChanged=useCallback(()=>setProjectSignal(s=>s+1),[]);
+  const [folders, setFolders] = useState<ProjectFolder[]>([]),
+    [selectedFolder, setSelectedFolder] = useState("");
+  const following = useRef(true),
+    named = useRef(new Set<string>());
+  const [projectWidth, setProjectWidth] = useState(380);
+  const [projectSignal, setProjectSignal] = useState(0),
+    [panelFocus, setPanelFocus] = useState<ProjectTab>("visuals"),
+    [projectPanelOpen, setProjectPanelOpen] = useState(false),
+    [highlight, setHighlight] = useState<ProjectHighlight>(null),
+    [cadDirty, setCadDirty] = useState(false);
+  const [projectAssets, setProjectAssets] = useState<{
+    id: string;
+    artifacts: Artifact[];
+  }>({ id: "", artifacts: [] });
+  const receiveArtifacts = useCallback(
+    (id: string, artifacts: Artifact[]) => setProjectAssets({ id, artifacts }),
+    [],
+  );
+  const artifactsChanged = useCallback(
+    () => setProjectSignal((s) => s + 1),
+    [],
+  );
   const [input, setInput] = useState(""),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
@@ -72,9 +94,28 @@ export default function ChatPage() {
   const project = projects.find((p) => p.id === active),
     empty = !project?.messages.length;
   const unlocked = Boolean(cap.user?.pro_active || project?.paid);
-  useEffect(()=>{setSidebar(window.matchMedia("(min-width:1101px)").matches);},[]);
-  useEffect(()=>{const el=composer.current;if(!el)return;el.style.height="0px";el.style.height=`${Math.min(180,Math.max(28,el.scrollHeight))}px`;},[input,empty]);
-  const openArtifact=useCallback((id:string)=>{if(cadDirty){setNotice("Save or discard your layout edits first.");return;}setHighlight(prev=>({id,version:(prev?.version||0)+1}));setSidebar(false);setProjectPanelOpen(true);setProjectSignal(s=>s+1);},[cadDirty]);
+  useEffect(() => {
+    setSidebar(window.matchMedia("(min-width:1101px)").matches);
+  }, []);
+  useEffect(() => {
+    const el = composer.current;
+    if (!el) return;
+    el.style.height = "0px";
+    el.style.height = `${Math.min(180, Math.max(28, el.scrollHeight))}px`;
+  }, [input, empty]);
+  const openArtifact = useCallback(
+    (id: string) => {
+      if (cadDirty) {
+        setNotice("Save or discard your layout edits first.");
+        return;
+      }
+      setHighlight((prev) => ({ id, version: (prev?.version || 0) + 1 }));
+      setSidebar(false);
+      setProjectPanelOpen(true);
+      setProjectSignal((s) => s + 1);
+    },
+    [cadDirty],
+  );
   async function refresh() {
     const [session, data] = await Promise.all([
       api("/api/session"),
@@ -82,6 +123,9 @@ export default function ChatPage() {
     ]);
     setCap(session);
     setProjects(data.projects);
+    void api("/api/folders")
+      .then((data) => setFolders(data.folders))
+      .catch(() => {});
     return data.projects as Project[];
   }
   useEffect(() => {
@@ -108,7 +152,13 @@ export default function ChatPage() {
           "";
         if (disposed) return;
         setProjects(list);
+        void api("/api/folders")
+          .then((data) => {
+            if (!disposed) setFolders(data.folders);
+          })
+          .catch(() => {});
         setActive(selected);
+        if (q.get("folder")) setSelectedFolder(q.get("folder")!);
         setReady(true);
         let draft: unknown;
         try {
@@ -164,11 +214,110 @@ export default function ChatPage() {
     };
   }, []);
   useEffect(() => {
-    thread.current?.scrollTo({
-      top: thread.current.scrollHeight,
-      behavior: "smooth",
-    });
+    following.current = true;
+    thread.current?.scrollTo({ top: thread.current.scrollHeight });
+  }, [active]);
+  useEffect(() => {
+    if (following.current)
+      thread.current?.scrollTo({ top: thread.current.scrollHeight });
   }, [project?.messages, busy]);
+  useEffect(() => {
+    const root = thread.current,
+      content = root?.firstElementChild;
+    if (!root || !content) return;
+    const observer = new ResizeObserver(() => {
+      if (following.current) root.scrollTo({ top: root.scrollHeight });
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [active, selectedFolder, empty]);
+  useEffect(() => {
+    if (
+      !project?.messages.some((m) => m.role === "user") ||
+      project.titleStatus !== "pending" ||
+      named.current.has(project.id)
+    )
+      return;
+    const id = project.id;
+    named.current.add(id);
+    void api("/api/projects/name", { id })
+      .then((data) =>
+        setProjects((list) =>
+          list.map((chat) =>
+            chat.id === id
+              ? { ...chat, title: data.title, titleStatus: "complete" }
+              : chat,
+          ),
+        ),
+      )
+      .catch(() => {});
+  }, [project?.id, project?.titleStatus, project?.messages.length]);
+  function openChat(id: string) {
+    if (busy || preparing) return;
+    if (cadDirty) {
+      setNotice("Save or discard your room edits before switching chats.");
+      return;
+    }
+    clearPhotos();
+    setSelectedFolder("");
+    setActive(id);
+    setPanelFocus("visuals");
+    setProjectPanelOpen(false);
+    setHighlight(null);
+    setInput("");
+    setNotice("");
+    setPaywall(false);
+    setSidebar(false);
+    window.history.replaceState(null, "", `/chat?project=${id}`);
+  }
+  async function assignChat(chatId: string, folderId: string | null) {
+    try {
+      const r = await fetch("/api/folders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "assign", chatId, folderId }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      setProjects((list) =>
+        list.map((chat) => (chat.id === chatId ? { ...chat, folderId } : chat)),
+      );
+      setProjectSignal((s) => s + 1);
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not assign this chat.");
+    }
+  }
+  async function createProject(description: string) {
+    try {
+      const data = await api("/api/folders", { description });
+      setFolders((list) => [data.folder, ...list]);
+      window.history.replaceState(null, "", `/chat?folder=${data.folder.id}`);
+      setSelectedFolder(data.folder.id);
+      setProjectPanelOpen(false);
+    } catch (e) {
+      setNotice(
+        e instanceof Error ? e.message : "Could not create the project.",
+      );
+    }
+  }
+  async function renameFolder(folderId: string, title: string) {
+    try {
+      const r = await fetch("/api/folders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rename", folderId, title }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error);
+      setFolders((list) =>
+        list.map((f) => (f.id === folderId ? { ...f, title } : f)),
+      );
+      setProjectSignal((s) => s + 1);
+    } catch (e) {
+      setNotice(
+        e instanceof Error ? e.message : "Could not rename the project.",
+      );
+    }
+  }
   useEffect(() => {
     if (ready && !busy) composer.current?.focus();
   }, [ready, active, busy]);
@@ -200,11 +349,17 @@ export default function ChatPage() {
     }
   }
   function newChat() {
-    if(cadDirty){setNotice("Save or discard your room edits before switching chats.");return;}
-    setProjectPanelOpen(false);setPanelFocus("visuals");setHighlight(null);
+    if (cadDirty) {
+      setNotice("Save or discard your room edits before switching chats.");
+      return;
+    }
+    setProjectPanelOpen(false);
+    setPanelFocus("visuals");
+    setHighlight(null);
     if (busy || preparing) return;
     clearPhotos();
     setActive("");
+    setSelectedFolder("");
     setInput("");
     setPaywall(false);
     setNotice("");
@@ -213,7 +368,13 @@ export default function ChatPage() {
   }
   async function send(e: FormEvent) {
     e.preventDefault();
-    if(cadDirty){setNotice("Save your room changes before sending, so Roomwise sees your latest geometry.");return;}
+    following.current = true;
+    if (cadDirty) {
+      setNotice(
+        "Save your room changes before sending, so Roomwise sees your latest geometry.",
+      );
+      return;
+    }
     const text =
       input.trim() ||
       (photos.length ? "Help me plan improvements to this room." : "");
@@ -300,8 +461,24 @@ export default function ChatPage() {
       clearPhotos();
       setProgress("Reviewing your room and request…");
       await readChatStream(response, (event) => {
-        if(event.type === "cad"){setProjectSignal(s=>s+1);setPanelFocus("layout");setProjectPanelOpen(true);setSidebar(false);}
-        if(event.type === "artifact"){setProjectSignal(s=>s+1);setPanelFocus(event.kind === "estimate"?"materials":event.kind === "construction"?"construction":"visuals");setSidebar(false);setHighlight(null);}
+        if (event.type === "cad") {
+          setProjectSignal((s) => s + 1);
+          setPanelFocus("layout");
+          setProjectPanelOpen(true);
+          setSidebar(false);
+        }
+        if (event.type === "artifact") {
+          setProjectSignal((s) => s + 1);
+          setPanelFocus(
+            event.kind === "estimate"
+              ? "materials"
+              : event.kind === "construction"
+                ? "construction"
+                : "visuals",
+          );
+          setSidebar(false);
+          setHighlight(null);
+        }
         if (event.type === "status") setProgress(event.message);
         if (event.type === "artifact")
           setProjects((list) =>
@@ -314,6 +491,16 @@ export default function ChatPage() {
                       i === room.messages.length - 1
                         ? {
                             ...message,
+                            artifactViews:
+                              event.view === "products" && event.index != null
+                                ? {
+                                    ...message.artifactViews,
+                                    [event.id]: {
+                                      type: "products" as const,
+                                      index: event.index,
+                                    },
+                                  }
+                                : message.artifactViews,
                             artifactIds: [
                               ...(message.artifactIds || []),
                               event.id,
@@ -350,7 +537,8 @@ export default function ChatPage() {
       );
     } finally {
       try {
-        await refresh();setProjectSignal(s=>s+1);
+        await refresh();
+        setProjectSignal((s) => s + 1);
       } catch {}
       setBusy(false);
       setProgress("");
@@ -422,9 +610,7 @@ export default function ChatPage() {
         onChange={(e) => setInput(e.target.value)}
         maxLength={4000}
         rows={1}
-        placeholder={
-          "Ask anything about your room"
-        }
+        placeholder={"Ask anything about your room"}
         disabled={!ready || busy || preparing || confirming}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -471,21 +657,35 @@ export default function ChatPage() {
           disabled={!ready || busy || preparing || photos.length >= 3}
           onClick={() => photoPicker.current?.click()}
         >
-          <ChatIcon name="attach" size={18}/>
+          <ChatIcon name="attach" size={18} />
         </Button>
-        <Button className="composerPhotoTool" type="button" disabled={!ready || busy || preparing || photos.length >= 3} onClick={()=>photoPicker.current?.click()} title="Up to 3 photos per message, 10 MB each"><Camera size={16}/>Photos</Button>
-        <span className={busy || preparing || confirming ? "composerStatus" : "visuallyHidden"} role="status">
-          {preparing ? (
-            "Preparing your photos…"
-          ) : confirming ? (
-            "Confirming your payment…"
-          ) : busy ? (
-            "Preparing your reply…"
-          ) : unlocked ? (
-            "Room Pass active"
-          ) : (
-            "Your ideas, one conversation away."
-          )}
+        <Button
+          className="composerPhotoTool"
+          type="button"
+          disabled={!ready || busy || preparing || photos.length >= 3}
+          onClick={() => photoPicker.current?.click()}
+          title="Up to 3 photos per message, 10 MB each"
+        >
+          <Camera size={16} />
+          Photos
+        </Button>
+        <span
+          className={
+            busy || preparing || confirming
+              ? "composerStatus"
+              : "visuallyHidden"
+          }
+          role="status"
+        >
+          {preparing
+            ? "Preparing your photos…"
+            : confirming
+              ? "Confirming your payment…"
+              : busy
+                ? "Preparing your reply…"
+                : unlocked
+                  ? "Room Pass active"
+                  : "Your ideas, one conversation away."}
         </span>
         <Button
           type="submit"
@@ -505,7 +705,14 @@ export default function ChatPage() {
     </form>
   );
   return (
-    <main style={{"--project-width":`${projectWidth}px`} as import("react").CSSProperties} className={`workspace cleanWorkspace projectWorkspace chatKit ${sidebar?"historyVisible":""} ${project?"withProject":""} ${project&&projectPanelOpen?"projectVisible":""}`}>
+    <main
+      style={
+        {
+          "--project-width": `${projectWidth}px`,
+        } as import("react").CSSProperties
+      }
+      className={`workspace cleanWorkspace projectWorkspace chatKit ${sidebar ? "historyVisible" : ""} ${project ? "withProject" : ""} ${project && !selectedFolder && projectPanelOpen ? "projectVisible" : ""}`}
+    >
       {sidebar && (
         <Button
           className="historyBackdrop"
@@ -515,49 +722,43 @@ export default function ChatPage() {
       )}
       <aside id="roomwise-history" className={sidebar ? "side open" : "side"}>
         <Link href="/" className="brand" aria-label="Roomwise home">
-          <span className="brandMark">R</span><span className="brandName">roomwise</span>
+          <span className="brandMark">R</span>
+          <span className="brandName">roomwise</span>
         </Link>
         <Button
           className="newChatButton"
           onClick={newChat}
           disabled={busy || preparing}
         >
-          <ChatIcon name="new-chat" size={18}/> <span>New chat</span>
+          <ChatIcon name="new-chat" size={18} /> <span>New chat</span>
         </Button>
-        <Button className="railHistory" aria-label="Open saved chats" onClick={()=>setSidebar(!sidebar)}><ChatIcon name="sidebar" size={19}/></Button>
-        <p className="sideLabel">Chats</p>
-        <div className="projectList">
-          {projects
-            .filter((p) => p.messages.length || p.paid || p.id === active)
-            .map((p) => (
-              <Button
-                key={p.id}
-                className={p.id === active ? "active" : ""}
-                disabled={busy || preparing}
-                onClick={() => {
-                  clearPhotos();
-                  if(cadDirty){setNotice("Save or discard your room edits before switching chats.");return;}
-                  setActive(p.id);setPanelFocus("visuals");setProjectPanelOpen(false);setHighlight(null);
-                  setInput("");
-                  setNotice("");
-                  setPaywall(false);
-                  setSidebar(false);
-                  window.history.replaceState(
-                    null,
-                    "",
-                    `/chat?project=${p.id}`,
-                  );
-                }}
-              >
-                <span>
-                  {p.messages
-                    .find((m) => m.role === "user")
-                    ?.content.slice(0, 60) ||
-                    (p.paid ? "Your new room" : "New chat")}
-                </span>
-              </Button>
-            ))}
-        </div>
+        <Button
+          className="railHistory"
+          aria-label="Open saved chats"
+          onClick={() => setSidebar(!sidebar)}
+        >
+          <ChatIcon name="sidebar" size={19} />
+        </Button>
+        <ProjectHistory
+          chats={projects.filter(
+            (p) => p.messages.length || p.paid || p.id === active,
+          )}
+          folders={folders}
+          active={active}
+          selected={selectedFolder}
+          busy={busy || preparing || cadDirty}
+          onChat={openChat}
+          onFolder={(id) => {
+            if (cadDirty || busy || preparing) return;
+            setSelectedFolder(id);
+            setProjectPanelOpen(false);
+            setSidebar(false);
+            window.history.replaceState(null, "", `/chat?folder=${id}`);
+          }}
+          onCreate={createProject}
+          onAssign={assignChat}
+          onRename={renameFolder}
+        />
         <Link className="account cleanAccount" href="/account">
           <Settings size={17} />
           <span>My account</span>
@@ -568,16 +769,44 @@ export default function ChatPage() {
         <header className="chatHead">
           <Button
             className="menu"
-            aria-label={sidebar?"Collapse chat history":"Open chat history"}
+            aria-label={sidebar ? "Collapse chat history" : "Open chat history"}
             aria-expanded={sidebar}
             aria-controls="roomwise-history"
             onClick={() => setSidebar(!sidebar)}
           >
-            <ChatIcon name="sidebar" size={20}/>
+            <ChatIcon name="sidebar" size={20} />
           </Button>
-          <span className="chatHeaderTitle">Roomwise</span>
+          <span className="chatHeaderTitle">
+            {selectedFolder
+              ? folders.find((f) => f.id === selectedFolder)?.title
+              : project?.title || "Roomwise"}
+          </span>
           <div className="workspaceActions">
-            {project&&<Button className="openProject" aria-label={projectPanelOpen?"Collapse project panel":"Open project panel"} aria-expanded={projectPanelOpen} aria-controls="roomwise-project" onClick={()=>{if(projectPanelOpen&&cadDirty){setNotice("Save or discard your layout edits before closing the project.");return;}if(!projectPanelOpen)setSidebar(false);setProjectPanelOpen(!projectPanelOpen);}}><FolderOpen size={16}/><span>Your project</span></Button>}
+            {project && !selectedFolder && (
+              <Button
+                className="openProject"
+                aria-label={
+                  projectPanelOpen
+                    ? "Collapse project panel"
+                    : "Open project panel"
+                }
+                aria-expanded={projectPanelOpen}
+                aria-controls="roomwise-project"
+                onClick={() => {
+                  if (projectPanelOpen && cadDirty) {
+                    setNotice(
+                      "Save or discard your layout edits before closing the project.",
+                    );
+                    return;
+                  }
+                  if (!projectPanelOpen) setSidebar(false);
+                  setProjectPanelOpen(!projectPanelOpen);
+                }}
+              >
+                <FolderOpen size={16} />
+                <span>Your project</span>
+              </Button>
+            )}
             {!empty && (
               <Button onClick={download} aria-label="Download plan">
                 <Download size={16} />
@@ -596,7 +825,15 @@ export default function ChatPage() {
             </Button>
           </div>
         )}
-        {empty ? (
+        {selectedFolder ? (
+          <FolderWorkspace
+            key={selectedFolder}
+            id={selectedFolder}
+            signal={projectSignal}
+            unlocked={Boolean(cap.user?.pro_active)}
+            onChat={openChat}
+          />
+        ) : empty ? (
           <div className="chatWelcome">
             <h1>What will you create today?</h1>
             {inputBox}
@@ -615,17 +852,56 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            <div className="thread" ref={thread}>
-              {project?.messages.map((m, i) => (
-                <ChatMessage key={i} message={m} onOpenArtifact={openArtifact} artifacts={projectAssets.id===project?.id?projectAssets.artifacts:[]} unlocked={unlocked} onArtifactsChanged={artifactsChanged}/>
-              ))}
-              {busy && (
-                <div className="thinking" role="status" aria-live="polite">
-                  <i />
-                  <i />
-                  <i />
-                  Preparing your reply…
+            <div className="threadFrame">
+              <div
+                className="threadScroll"
+                ref={thread}
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  following.current =
+                    el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+                }}
+              >
+                <div className="thread">
+                  {project?.messages.map((m, i) => (
+                    <div key={i} id={`turn-${project?.id}-${i}`}>
+                      <ChatMessage
+                        message={m}
+                        repeatedArtifactIds={(m.artifactIds || []).filter(
+                          (id) =>
+                            project.messages
+                              .slice(0, i)
+                              .some((previous) =>
+                                previous.artifactIds?.includes(id),
+                              ),
+                        )}
+                        onOpenArtifact={openArtifact}
+                        artifacts={
+                          projectAssets.id === project?.id
+                            ? projectAssets.artifacts
+                            : []
+                        }
+                        unlocked={unlocked}
+                        onArtifactsChanged={artifactsChanged}
+                      />
+                    </div>
+                  ))}
+                  {busy && (
+                    <div className="thinking" role="status" aria-live="polite">
+                      <i />
+                      <i />
+                      <i />
+                      Preparing your reply…
+                    </div>
+                  )}
                 </div>
+              </div>
+              {project && (
+                <ThreadManager
+                  messages={project.messages}
+                  chatId={project.id}
+                  scroll={thread}
+                />
               )}
             </div>
             {inputBox}
@@ -655,7 +931,44 @@ export default function ChatPage() {
           work.
         </p>
       </section>
-      {project&&<ProjectPanel key={project.id} projectId={project.id} width={projectWidth} onWidth={setProjectWidth} signal={projectSignal} focus={panelFocus} highlight={highlight} mobileOpen={projectPanelOpen} busy={busy} unlocked={unlocked} onArtifacts={receiveArtifacts} onDirtyChange={setCadDirty} onClose={()=>setProjectPanelOpen(false)} onAsk={text=>{setInput(text);setSidebar(false);setProjectPanelOpen(false);composer.current?.focus();}}/>}
+      {project && !selectedFolder && (
+        <ProjectPanel
+          key={project.id}
+          projectId={project.id}
+          folder={folders.find((f) => f.id === project.folderId)}
+          chats={projects.filter(
+            (chat) => chat.folderId && chat.folderId === project.folderId,
+          )}
+          onChat={openChat}
+          onFolder={() => {
+            if (cadDirty || busy || preparing) return;
+            setSelectedFolder(project.folderId || "");
+            setProjectPanelOpen(false);
+            window.history.replaceState(
+              null,
+              "",
+              `/chat?folder=${project.folderId}`,
+            );
+          }}
+          width={projectWidth}
+          onWidth={setProjectWidth}
+          signal={projectSignal}
+          focus={panelFocus}
+          highlight={highlight}
+          mobileOpen={projectPanelOpen}
+          busy={busy}
+          unlocked={unlocked}
+          onArtifacts={receiveArtifacts}
+          onDirtyChange={setCadDirty}
+          onClose={() => setProjectPanelOpen(false)}
+          onAsk={(text) => {
+            setInput(text);
+            setSidebar(false);
+            setProjectPanelOpen(false);
+            composer.current?.focus();
+          }}
+        />
+      )}
     </main>
   );
 }

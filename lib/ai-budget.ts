@@ -52,7 +52,7 @@ export async function reserveAiCall(
 ) {
   if (
     !Number.isSafeInteger(reservationCents) ||
-    reservationCents < AI_CALL_CENTS ||
+    reservationCents < 1 ||
     reservationCents > 100 ||
     !Number.isSafeInteger(limitCents) ||
     limitCents < reservationCents

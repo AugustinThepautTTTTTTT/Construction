@@ -11,6 +11,11 @@ CREATE TABLE IF NOT EXISTS roomwise.password_resets(token_hash text PRIMARY KEY,
 CREATE TABLE IF NOT EXISTS roomwise.sessions(token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES roomwise.users(id), expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.magic_links(token_hash text PRIMARY KEY,email text NOT NULL,guest_id uuid REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.projects(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),title text NOT NULL,brief jsonb NOT NULL,messages jsonb NOT NULL DEFAULT '[]',paid boolean NOT NULL DEFAULT false,preview_used boolean NOT NULL DEFAULT false,updated_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS roomwise.project_folders(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),title text NOT NULL,description text NOT NULL DEFAULT '',title_status text NOT NULL DEFAULT 'pending',title_started_at timestamptz,created_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE roomwise.projects ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES roomwise.project_folders(id) ON DELETE SET NULL;
+ALTER TABLE roomwise.projects ADD COLUMN IF NOT EXISTS title_status text NOT NULL DEFAULT 'pending';
+ALTER TABLE roomwise.projects ADD COLUMN IF NOT EXISTS title_started_at timestamptz;
+CREATE INDEX IF NOT EXISTS roomwise_projects_folder_idx ON roomwise.projects(user_id,folder_id);
 CREATE TABLE IF NOT EXISTS roomwise.free_trials(user_id uuid PRIMARY KEY REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),created_at timestamptz NOT NULL DEFAULT now());
 INSERT INTO roomwise.free_trials(user_id,project_id) SELECT DISTINCT ON (p.user_id) p.user_id,p.id FROM roomwise.projects p JOIN roomwise.users u ON u.id=p.user_id WHERE p.preview_used=true AND p.paid=false AND u.email IS NOT NULL ORDER BY p.user_id,p.updated_at ON CONFLICT DO NOTHING;
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
@@ -44,6 +49,8 @@ function project(row: Record<string, any>): Project {
     storage: "cloud",
     id: row.id,
     title: row.title,
+    folderId: row.folder_id,
+    titleStatus: row.title_status,
     brief: row.brief,
     messages: row.messages,
     paid: row.paid,
@@ -95,6 +102,7 @@ export class ProjectRepository {
     status: "running" | "complete" | "failed",
     usage?: { input_tokens: number; output_tokens: number },
     artifactIds?: string[],
+    artifactViews?: Message["artifactViews"],
   ) {
     await this.db.query(
       `UPDATE roomwise.projects SET messages=(SELECT COALESCE(jsonb_agg(CASE WHEN item->>'generationId'=$3 THEN item || $4::jsonb ELSE item END ORDER BY ord), '[]'::jsonb) FROM jsonb_array_elements(messages) WITH ORDINALITY AS t(item,ord)),updated_at=now() WHERE id=$1 AND user_id=$2`,
@@ -107,6 +115,7 @@ export class ProjectRepository {
           status,
           ...(usage ? { usage } : {}),
           ...(artifactIds ? { artifactIds } : {}),
+          ...(artifactViews ? { artifactViews } : {}),
         }),
       ],
     );

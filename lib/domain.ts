@@ -12,6 +12,7 @@ export type Message = {
   content: string;
   photoIds?: string[];
   artifactIds?: string[];
+  artifactViews?: Record<string, { type: "products"; index: number }>;
   generationId?: string;
   status?: "running" | "complete" | "failed";
   model?: string;
@@ -20,6 +21,8 @@ export type Message = {
 export type Project = {
   id: string;
   title: string;
+  folderId?: string | null;
+  titleStatus?: string;
   brief: Brief;
   messages: Message[];
   paid: boolean;

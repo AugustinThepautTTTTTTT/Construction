@@ -198,3 +198,53 @@
   .chatKit .message.user .messageActions {opacity:1;pointer-events:auto}
 }
 @media(max-height:620px) {.chatKit.projectWorkspace .chatWelcome {padding:24px 0 30px;justify-content:flex-start}.chatKit.projectWorkspace .chatWelcome h1 {margin-top:24px}}
+/* Each pane owns its scrollport. The viewport itself never grows with content. */
+body:has(.chatKit) {height:100dvh;overflow:hidden}
+.chatKit.projectWorkspace {min-height:0;max-height:100dvh}
+.chatKit.projectWorkspace .chatArea {position:relative;overflow:hidden;min-width:0}
+.chatKit.projectWorkspace .chatHeaderTitle {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;font-size:16px;max-width:60%}
+.chatKit .threadFrame {flex:1;min-height:0;width:100%;position:relative;overflow:hidden}
+.chatKit .threadScroll {height:100%;width:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#cfcfcf transparent}
+.chatKit.projectWorkspace .thread {width:min(768px,calc(100% - 80px));max-width:768px;overflow:visible;flex:none;min-height:auto;margin:0 auto;padding:35px 0 28px}
+.threadManager {position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:1px;max-height:70%;overflow:auto;scrollbar-width:none}
+.chatKit .threadManager button {background:transparent;border:0;padding:7px 3px;width:25px;height:22px;display:flex;justify-content:center;align-items:center;cursor:pointer}
+.threadManager i {width:10px;height:2px;border-radius:2px;background:#ddd;transition:width .15s,background .15s}
+.threadManager button[aria-current=step] i,.threadManager button:hover i {width:19px;background:#444}
+.chatKit .organizedHistory {overflow:auto;padding:0 4px;scrollbar-width:thin}
+.side:not(.open) .organizedHistory {display:none}
+.historySectionHead {display:flex;align-items:center;justify-content:space-between;padding:15px 8px 5px;color:#888}
+.chatKit .historySectionHead button {padding:4px;min-height:24px;width:24px}
+.historyChat {display:flex;align-items:center;position:relative;border-radius:8px;min-width:0}
+.historyChat.active {background:#eaeaea}
+.chatKit .historyChat>button {flex:1;min-width:0;text-align:left;width:calc(100% - 28px)}
+.chatAssign {flex-shrink:0;position:relative;padding-right:6px}
+.chatAssign>summary {list-style:none;cursor:pointer;color:#888;padding:5px}
+.chatAssign>div {position:fixed;left:45px;z-index:40;width:205px;background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:12px;box-shadow:0 6px 25px #0001}
+.chatAssign label {font-size:11px;display:flex;flex-direction:column;gap:8px}
+.chatAssign select {font:12px Arial;padding:7px;border:1px solid #ddd;border-radius:6px;width:100%}
+.historyFolder {border-radius:8px;margin:2px 0}
+.historyFolder.dropTarget {background:#e9e9e9;outline:1px dashed #888}
+.historyFolder>summary {display:flex;align-items:center;list-style:none;cursor:pointer;gap:2px}
+.chatKit .historyFolder>summary>button:first-of-type {display:flex;align-items:center;gap:7px;min-width:0;flex:1;text-align:left;padding:9px 5px}
+.chatKit .historyFolder>summary>button:last-of-type {width:23px;min-height:24px;padding:4px}
+.folderChats {padding-left:14px;border-left:1px solid #ddd;margin-left:10px}
+.folderChats>small {display:block;font-size:11px;color:#aaa;padding:10px}
+.newFolderForm {padding:10px 5px;display:flex;flex-direction:column;gap:8px}
+.newFolderForm input {width:100%;border:1px solid #ddd;border-radius:7px;padding:9px;font:12px Arial}
+.chatKit .newFolderForm button {background:#111;color:#fff;font-size:12px;text-align:center;min-height:32px;padding:7px}
+.folderWorkspace {flex:1;min-height:0;overflow:auto;padding:35px max(24px,calc((100% - 900px)/2));overscroll-behavior:contain;scrollbar-width:thin}
+.folderWorkspace>header small {font-size:10px;color:#999;letter-spacing:.12em}
+.folderWorkspace h1 {font-size:30px;font-weight:500;letter-spacing:-1px;margin:12px 0}
+.folderWorkspace>header p,.folderEmpty {color:#888;font-size:13px;line-height:1.7}
+.folderAssetTabs {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:30px 0}
+.chatKit .folderAssetTabs button {border:1px solid #e9e9e9;border-radius:12px;background:white;padding:20px 16px;display:flex;gap:12px;text-align:left;align-items:center;font-size:12px}
+.chatKit .folderAssetTabs button[aria-pressed=true] {background:#f7f7f7;border-color:#ccc}
+.folderAssetTabs small {display:block;color:#aaa;font-size:10px;margin-top:6px}
+.folderAssetList>section {margin-bottom:28px}
+.folderConversationList {margin:40px 0}
+.folderConversationList h2 {font-size:15px;font-weight:500;display:flex;gap:10px;align-items:center;margin-bottom:20px}
+.chatKit .folderConversationList>button {display:flex;justify-content:space-between;width:100%;background:white;border:0;border-bottom:1px solid #eee;padding:17px 0;text-align:left;font-size:14px}
+.folderConversationList>p {font-size:13px;color:#999}
+@media(max-width:700px){.chatKit.projectWorkspace .thread {width:calc(100% - 48px);margin-left:16px}.threadManager{right:6px}.folderAssetTabs{gap:6px}.chatKit .folderAssetTabs button{padding:14px 8px;flex-direction:column;gap:8px}.folderWorkspace{padding:25px 18px}}
+.folderAssetTitle {font-size:14px;font-weight:500;margin:24px 0 18px}.folderAssetTitle small{display:block;font-size:11px;color:#999;margin-top:6px}.folderWorkspace .projectMaterials {padding:0}.folderWorkspace .projectBillActions {display:flex;align-items:center;justify-content:space-between}.folderWorkspace .shoppingCheck {width:17px;height:17px;min-width:17px;padding:0;border:1px solid #ccc;border-radius:4px;background:#fff}.folderWorkspace .shoppingCheck[aria-pressed=true]{background:#171717;color:white}.folderWorkspace .materialExpand {background:none;border:0;text-align:left;display:flex;flex:1;justify-content:space-between;align-items:center;gap:10px}.folderWorkspace button{font-family:Arial,Helvetica,sans-serif;cursor:pointer}.folderWorkspace .productOptions article{border:1px solid #eee;border-radius:12px;padding:16px;background:white}.folderWorkspace .productOptions article.selected{border-color:#777}.folderWorkspace .productOptions article h4{font-size:13px}.folderWorkspace .productOptions article>small{font-size:10px;color:#888}
+.chatKit .historyFolder>summary>button {flex-direction:row}

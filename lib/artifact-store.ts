@@ -27,7 +27,7 @@ export async function runRoomTool(
     const bill=await db.query("SELECT id,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",[lookup.estimateId,projectId,owner]);
     if(!bill.rows.length)throw new Error("Choose a material bill from this room.");
     const comparison=await searchMaterialProduct(db,owner,lookup.estimateId,bill.rows[0].data,lookup.index,lookup.preferences);
-    return {id:lookup.estimateId,kind:"estimate",products:comparison.products,summary:"Product comparison saved for the requested item. The user can compare packs, quantities, prices and links, then choose a product in Materials. Do not claim an entire basket was researched."};
+    return {id:lookup.estimateId,kind:"estimate",productIndex:lookup.index,products:comparison.products,summary:"Product comparison saved for the requested item. The user can compare packs, quantities, prices and links, then choose a product in Materials. Do not claim an entire basket was researched."};
   }
   if (name === "update_room_cad") {
     const {model,baseRevision,changeSummary} = cadUpdateSchema.parse(args);

@@ -1,7 +1,7 @@
-import {creditAccount, debitCredits, refundCredits, CreditError} from "@/lib/credits";
+import { classifyChatIntent, selectRevisionSource, recordSupportCase, isServiceOnly } from "@/lib/chat-harness";
+import {PLANS, CREDIT_COST, creditAccount, debitCredits, refundCredits, CreditError} from "@/lib/credits";
 import { ProductSearchError } from "@/lib/material-research";
 import { bindVisualPhoto, VisualSourceError } from "@/lib/visual-recovery";
-import { isLayoutRequest, isProductSearchRequest, isVisualRequest, implementationRequest } from "@/lib/project-intent";
 import { getCad, CadConflict } from "@/lib/cad/store";
 import OpenAI from "openai";
 import { randomUUID } from "node:crypto";
@@ -40,7 +40,7 @@ export async function POST(r: NextRequest) {
     const p = await repo.get(user.id, parsed.data.projectId);
     if (!p) return error("Project not found.", 404);
     const account = await creditAccount(db, user.id);
-    if (account.credits < 1) return error(new CreditError().message, 402);
+    if (!(await rateLimit(`chat:${user.id}`, 60, 3600))) return error("Please wait before sending more messages.", 429);
     const photoIds = parsed.data.photoIds;
     // Continue using the most recently shared room photos on follow-up turns.
     const contextPhotos = photoIds.length
@@ -97,7 +97,6 @@ export async function POST(r: NextRequest) {
     try {
       const policy = aiPolicy();
       if (!policy) throw new Error("AI_UNAVAILABLE");
-      await debitCredits(db, user.id, operation, 'message', p.id);
       const previous = await db.query(
         "SELECT id,kind,data FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind!='plan' ORDER BY created_at DESC LIMIT 30",
         [p.id, user.id],
@@ -108,17 +107,26 @@ export async function POST(r: NextRequest) {
           ? row.id === preferred?.id
           : index === rows.findIndex((other) => other.kind === row.kind),
       );
-      const products = isProductSearchRequest(parsed.data.message, p.messages);
-      const visuals = isVisualRequest(parsed.data.message, p.messages);
-      const requested = implementationRequest(parsed.data.message);
-      const hasBill = previous.rows.some((row) => row.kind === "estimate");
       const currentCad = await getCad(db, user.id, p.id);
-      const layout = isLayoutRequest(parsed.data.message, !!currentCad);
+      const readyVisuals = await db.query("SELECT id,data,image IS NOT NULL AS ready FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='visual' ORDER BY created_at DESC LIMIT 8",[p.id,user.id]);
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 60000, maxRetries: 0 });
+      const routing = await classifyChatIntent(client,policy.model,parsed.data.message,p.messages,readyVisuals.rows.map(row=>({id:row.id,data:row.data,hasImage:!!row.ready})),!!currentCad);
+      const intent = routing.intent;
+      if (!isServiceOnly(intent)) await debitCredits(db, user.id, operation, 'message', p.id);
+      const revision = selectRevisionSource(intent.visual,readyVisuals.rows.map(row=>({id:row.id,data:row.data,hasImage:!!row.ready})),contextPhotos);
+      const revisionUnavailable = intent.visual === 'revise' && !revision;
+      const visuals = intent.visual !== 'none' && !revisionUnavailable && !intent.clarify && photos.length > 0;
+      const products = intent.products;
+      const requested = {materials:intent.materials,construction:intent.construction};
+      const hasBill = previous.rows.some((row) => row.kind === "estimate");
+      const layout = intent.layout;
+      const supportCase = intent.complaint ? await recordSupportCase(db,user.id,p.id,generationId,parsed.data.message,intent.language).catch(()=>undefined) : undefined;
       const instructions =
         (account.plan === "free" ? "FREE PLAN: Help draft ideas, analyse room photos and prepare concept images. Do not produce a bill of materials, quantities/cost tables, product research, construction checklist or CAD. Explain these capabilities are included in Basic and Pro when requested.\n" : "") + ROOM_PLANNER_PROMPT +
         "\n" +
         skillInstructions() +
-        `\nCURRENT REQUEST: ${visuals ? "A new visual is requested; generate it automatically from an original room photo." : "No new image is requested. Do not create or update a visual, even if photos or earlier concepts exist. Use them only as reference for the requested answer, BOM or work plan."} ${requested.materials ? "Save the requested complete bill of materials." : ""} ${requested.construction ? "Save the requested work instructions linked to the bill of materials." : ""}\n` +
+        `\nHARNESS: Reply in the user’s language${routing.semantic ? ` (${intent.language})` : ""}. Intent: ${JSON.stringify(intent)}. ${intent.clarify ? "Ask one focused clarification. Do not spend image/search credits or produce a deliverable until the user clarifies." : ""} ${revisionUnavailable ? "The referenced concept is not ready or does not match the current photo. Ask the user to wait or identify/upload the intended room; do not restart from scratch." : ""} ${revision ? `IMAGE REVISION: Edit saved concept ${revision.id}. Original photo ${revision.data.sourcePhotoId} remains the geometry reference. Preserve all successful prior design choices and change ONLY the user’s requested details. Prior concept: ${JSON.stringify(revision.data)}. Describe this as a revision, not a new room.` : ""} ${supportCase ? `SUPPORT CASE SAVED: ${supportCase}. Acknowledge the dissatisfaction and say the Archicova team will investigate this recorded report. Include the short reference ${supportCase.slice(0,8)}. Do not promise a response time, refund, notification, or say an investigation has already started. Continue actionable design fixes when requested.` : intent.complaint ? "The support case could not be saved. Acknowledge the issue; do not claim it was escalated, and suggest retrying." : ""}\nPUBLIC PLAN FACTS: ${JSON.stringify(PLANS)}. Current plan: ${account.plan}. Remaining credits: ${account.credits}. Credit costs: ${JSON.stringify(CREDIT_COST)}. Free gives 10 credits once, never monthly. Basic and Pro include materials, work plans, CAD and requested product research. Basic is the default paid recommendation for one room; Pro is for multiple rooms, frequent revisions or professional use. Recommend Free to explore when appropriate, Basic for implementation, Pro for higher usage. Basic offers the same tools as Pro with fewer credits. Explain fit and value honestly; never disparage the service, invent discounts, guarantee renovation savings, push an unnecessary upgrade, or claim a plan was changed. Link /purchase?plan=basic or /purchase?plan=pro for an upgrade. Existing Pro users do not need another upgrade.\n` +
+        `\nCURRENT REQUEST: ${intent.visual !== "none" && !visuals ? "A visual was requested but its source is unavailable or needs clarification. Ask for the missing original photo or clarification, or wait for the pending concept; never restart silently." : visuals ? revision ? "A revision is requested. Generate it automatically from the saved concept using the original room photo as a geometry reference." : "A new visual is requested; generate it automatically from an original room photo." : "No new image is requested. Do not create or update a visual, even if photos or earlier concepts exist. Use them only as reference for the requested answer, BOM or work plan."} ${requested.materials ? "Save the requested complete bill of materials." : ""} ${requested.construction ? "Save the requested work instructions linked to the bill of materials." : ""}\n` +
         `\nPROJECT MODE: ${layout ? "Layout / geometry: use the saved CAD when a spatial change is requested." : "Refurbishment: do not create or update CAD. Match the current request. For quantities use existing CAD or explicit provisional manual quantities; never create a 2D plan. Construction plans are ordered work steps linked to the BOM, not geometry."}\n` +
         (products && hasBill
           ? "\nPRODUCT SEARCH MODE: Use search_material_product with the existing saved BOM ID and its exact row index. Do not create, replace or shorten a BOM for a shopping comparison. If the requested material is missing, explain that it needs adding to the existing bill first. Product search is available in this conversation; call the tool before claiming real references or availability. Only a user selection updates that row.\n"
@@ -198,22 +206,18 @@ export async function POST(r: NextRequest) {
                 : "Reviewing your room and request…",
             });
             let usage:
-              { input_tokens: number; output_tokens: number } | undefined;
+              { input_tokens: number; output_tokens: number } | undefined = routing.usage;
             if (policy) {
-              const client = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY,
-                timeout: 60000,
-                maxRetries: 0,
-              });
               let currentInput = input;
               let toolCount = 0;
-              let billSaved = false, workSaved = false;
-              for (let round = 0; round < 3; round++) {
-                const requiredTool = account.plan !== 'free' && round < 2
-                  ? !billSaved && !(products && hasBill) && (requested.materials || (requested.construction && !hasBill))
-                    ? 'create_material_estimate'
-                    : requested.construction && !workSaved && (hasBill || billSaved)
-                      ? 'create_construction_plan' : null
+              let billSaved = false, workSaved = false, visualSaved = false, cadSaved = false, searchSaved = false;
+              for (let round = 0; round < 5; round++) {
+                const materialsAllowed = (requested.materials || (requested.construction && !hasBill)) && !billSaved;
+                const requiredTool = round < 4
+                  ? account.plan !== 'free' && layout && !cadSaved ? 'update_room_cad'
+                    : account.plan !== 'free' && materialsAllowed && !(products && hasBill) ? 'create_material_estimate'
+                    : account.plan !== 'free' && requested.construction && !workSaved && (hasBill || billSaved) ? 'create_construction_plan'
+                    : visuals && !visualSaved ? 'prepare_room_visual' : null
                   : null;
                 const response = await client.responses.create({
                   model: policy.model,
@@ -221,17 +225,19 @@ export async function POST(r: NextRequest) {
                   input: currentInput,
                   reasoning: { effort: "none" },
                   service_tier: "default",
-                  max_output_tokens: 12000,
+                  max_output_tokens: round === 4 || isServiceOnly(intent) || ![visuals,requested.materials,requested.construction,products,layout].some(Boolean) ? CHAT_LIMITS.maxOutputTokens : 12000,
                   store: false,
                   stream: true,
                   tools:
-                    round < 2
+                    round < 4
                       ? skillTools({
-                          layout,
-                          products,
+                          layout: layout && !cadSaved,
+                          products: products && (hasBill || billSaved) && !searchSaved,
+                          materials: materialsAllowed,
+                          construction: requested.construction && !workSaved,
                           hasBill,
                           paid: account.plan !== "free",
-                          visuals,
+                          visuals: visuals && !visualSaved,
                         })
                       : [],
                   ...(requiredTool ? {tool_choice:{type:'function' as const,name:requiredTool}} : {}),
@@ -284,7 +290,7 @@ export async function POST(r: NextRequest) {
                   ),
                 ];
                 for (const call of calls) {
-                  if (++toolCount > 3) throw new Error("TOO_MANY_DELIVERABLES");
+                  if (++toolCount > 4) throw new Error("TOO_MANY_DELIVERABLES");
                   emit({
                     type: "status",
                     message:
@@ -319,13 +325,16 @@ export async function POST(r: NextRequest) {
                             photos.map((photo) => photo.id),
                           )
                         : JSON.parse(call.arguments),
-                      { productSearch: products, visuals },
+                      { productSearch: products && !searchSaved, visuals: visuals && !visualSaved, materials: materialsAllowed && !billSaved, construction: requested.construction && !workSaved, layout: layout && !cadSaved, revisionSourceId: revision?.id },
                     );
                     const artifact = result as {
                       id: string;
                       kind: string;
                       revision?: number;
                     };
+                    if(call.name==='search_material_product')searchSaved=true;
+                    if(artifact.kind==='cad')cadSaved=true;
+                    if(artifact.kind==='visual')visualSaved=true;
                     if(artifact.kind==='estimate')billSaved=true;
                     if(artifact.kind==='construction')workSaved=true;
                     if (artifact.kind === "cad") {
@@ -442,6 +451,7 @@ export async function POST(r: NextRequest) {
               )
               .catch(() => {});
             if (!saved.trim() && !artifactIds.length) await refundCredits(db, user.id, operation).catch(() => {});
+            const failureCase = await recordSupportCase(db,user.id,p.id,generationId,"Request could not finish: " + parsed.data.message,intent.language).catch(()=>undefined);
             const quota =
               e instanceof OpenAI.APIError &&
               ["insufficient_quota", "credit_balance_exhausted"].includes(
@@ -449,9 +459,7 @@ export async function POST(r: NextRequest) {
               );
             emit({
               type: "error",
-              message: quota
-                ? "The planner’s API credit balance is unavailable. Please contact Archicova support."
-                : "The planner could not finish this reply. Your chat is saved; please retry.",
+              message: (quota ? "Archicova is temporarily unavailable. Your chat is saved." : "Your reply could not finish. Your chat is saved; please retry.") + (failureCase ? ` The Archicova team will investigate this recorded issue (reference ${failureCase.slice(0,8)}).` : ""),
             });
           } finally {
             if (connected)

@@ -64,7 +64,7 @@ export async function POST(
     const a = result.rows[0];
     if (a.image) return NextResponse.json({ ready: true });
     const rejectQueued=async(message:string,status=400)=>{if(a.status==="queued")await db.query("UPDATE roomwise.artifacts SET status='failed',data=data || $1::jsonb WHERE id=$2 AND user_id=$3 AND status='queued'",[JSON.stringify({generationError:message}),id,user.id]);return error(message,status);};
-    if(!visualRequestedForArtifact(a.messages||[],id))return rejectQueued("This message requested materials or work instructions, so no image will be generated.");
+    if(a.data.visualAuthorized !== true && !visualRequestedForArtifact(a.messages||[],id))return rejectQueued("This message requested materials or work instructions, so no image will be generated.");
     const policy = aiPolicy();
     if (!policy)
       return rejectQueued("Image generation is temporarily unavailable.");
@@ -80,6 +80,11 @@ export async function POST(
         [visual.sourcePhotoId, user.id, a.project_id],
       );
     if (!photo.rows.length) return rejectQueued("Original room photo not found.", 404);
+    const revision = a.data.revisionSourceId ? await db.query(
+      "SELECT image,data FROM roomwise.artifacts WHERE id=$1 AND user_id=$2 AND project_id=$3 AND kind='visual' AND image IS NOT NULL AND data->>'sourcePhotoId'=$4",
+      [a.data.revisionSourceId,user.id,a.project_id,visual.sourcePhotoId],
+    ) : null;
+    if (a.data.revisionSourceId && !revision?.rows.length) return rejectQueued("The earlier concept is unavailable. Your edit is saved; select the intended concept before retrying.",409);
     const c = await db.connect();
     try {
       await c.query("BEGIN");
@@ -124,8 +129,11 @@ export async function POST(
     const currentCad = await getCad(db,user.id,a.project_id);
     const response = await client.images.edit({
       model: ROOM_IMAGE_MODEL,
-      image: await toFile(original, "room.jpg", { type: "image/jpeg" }),
-      prompt: roomVisualPrompt(visual,currentCad?.model),
+      image: revision ? [
+        await toFile(await sharp(revision.rows[0].image).resize(1536,1536,{fit:"inside",withoutEnlargement:true}).jpeg({quality:85}).toBuffer(), "current-concept.jpg", {type:"image/jpeg"}),
+        await toFile(original, "original-room.jpg", {type:"image/jpeg"}),
+      ] : await toFile(original, "room.jpg", { type: "image/jpeg" }),
+      prompt: roomVisualPrompt(visual,currentCad?.model,!!revision),
       n: 1,
       size,
       quality: "medium",
@@ -172,7 +180,7 @@ export async function POST(
     return error(
       e instanceof CreditError
         ? e.message
-        : "The concept could not be generated. Check image-model access in your API project, or try again later.", e instanceof CreditError ? 402 : 503,
+        : "Your concept could not finish. Your design is saved and the image credits have been returned. Please try again.", e instanceof CreditError ? 402 : 503,
     );
   }
 }

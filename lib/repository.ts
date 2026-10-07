@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS roomwise.cad_revisions(project_id uuid NOT NULL REFER
 CREATE TABLE IF NOT EXISTS roomwise.photos(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),data bytea NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
 CREATE INDEX IF NOT EXISTS roomwise_photos_project ON roomwise.photos(project_id);
 CREATE TABLE IF NOT EXISTS roomwise.generations(id uuid PRIMARY KEY,project_id uuid NOT NULL REFERENCES roomwise.projects(id),status text NOT NULL DEFAULT 'running',created_at timestamptz NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS roomwise.support_cases(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),generation_id uuid NOT NULL UNIQUE REFERENCES roomwise.generations(id),message text NOT NULL,language text NOT NULL,status text NOT NULL DEFAULT 'open',created_at timestamptz NOT NULL DEFAULT now());
 CREATE UNIQUE INDEX IF NOT EXISTS roomwise_generation_active ON roomwise.generations(project_id) WHERE status='running';
 CREATE TABLE IF NOT EXISTS roomwise.rate_limits(key text PRIMARY KEY, count integer NOT NULL, reset_at timestamptz NOT NULL);
 `;

@@ -14,9 +14,9 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react";
+import { materialBills } from "@/lib/material-bills";
 import type { Artifact } from "@/lib/room-artifacts";
-import { ChatVisual } from "./chat-artifact";
-import { ProjectComparison } from "./project-comparison";
+import { ProjectVisualGallery } from "./project-visual-gallery";
 import { ConstructionPlanView } from "./construction-plan";
 import { ProjectMaterials } from "./project-materials";
 const CadStudio = dynamic(
@@ -74,7 +74,6 @@ export function ProjectPanel({
       hasCad: false,
     }),
     [tab, setTab] = useState<ProjectTab>(focus),
-    [compare, setCompare] = useState<Artifact | null>(null),
     [worksId, setWorksId] = useState(""),
     [stepIndex, setStepIndex] = useState<number | null>(null),
     [billId, setBillId] = useState(""),
@@ -218,7 +217,7 @@ export function ProjectPanel({
   const works = assets.artifacts.filter((a) => a.kind === "construction"),
     work = works.find((a) => a.id === worksId) || works[0];
   const visuals = assets.artifacts.filter((a) => a.kind === "visual"),
-    bills = assets.artifacts.filter((a) => a.kind === "estimate"),
+    bills = materialBills(assets.artifacts),
     bill = bills.find((a) => a.id === billId) || bills[0];
   function material(id: string, index: number) {
     setBillId(id);
@@ -341,50 +340,11 @@ export function ProjectPanel({
               </p>
             </div>
             {visuals.length ? (
-              <div className="projectConceptGrid">
-                {visuals.map((a) => (
-                  <article key={a.id} className="projectConcept">
-                    {a.hasImage ? (
-                      <ChatVisual artifact={a} />
-                    ) : (
-                      <div
-                        className={`conceptPending ${a.status === "running" ? "animating" : ""}`}
-                      >
-                        <Camera size={24} />
-                        <span>
-                          {a.status === "failed"
-                            ? "Concept interrupted"
-                            : !unlocked
-                              ? "Room Pass required"
-                              : "Creating your concept…"}
-                        </span>
-                        {a.data.generationError && (
-                          <p>{a.data.generationError}</p>
-                        )}
-                        {a.status === "failed" && unlocked && (
-                          <Button onClick={() => void generate(a.id)}>
-                            Retry concept
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    <div className="conceptInfo">
-                      <div>
-                        <h3>{a.data.title}</h3>
-                        <small>Illustrative design concept</small>
-                      </div>
-                      {a.hasImage && (
-                        <Button
-                          onClick={() => setCompare(a)}
-                          aria-label={`Open ${a.data.title} full size`}
-                        >
-                          <Maximize2 size={15} />
-                        </Button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <ProjectVisualGallery
+                artifacts={visuals}
+                unlocked={() => unlocked}
+                onChanged={() => void load()}
+              />
             ) : (
               <div className="projectFolderEmpty">
                 <Camera size={28} />
@@ -608,13 +568,6 @@ export function ProjectPanel({
           <Button onClick={() => choose("layout")}>Open layout tools</Button>
         </details>
       </div>
-      {compare && (
-        <ProjectComparison
-          key={compare.id}
-          artifact={compare}
-          onClose={() => setCompare(null)}
-        />
-      )}
     </aside>
   );
 }

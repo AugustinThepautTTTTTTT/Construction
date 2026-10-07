@@ -248,3 +248,18 @@ body:has(.chatKit) {height:100dvh;overflow:hidden}
 @media(max-width:700px){.chatKit.projectWorkspace .thread {width:calc(100% - 48px);margin-left:16px}.threadManager{right:6px}.folderAssetTabs{gap:6px}.chatKit .folderAssetTabs button{padding:14px 8px;flex-direction:column;gap:8px}.folderWorkspace{padding:25px 18px}}
 .folderAssetTitle {font-size:14px;font-weight:500;margin:24px 0 18px}.folderAssetTitle small{display:block;font-size:11px;color:#999;margin-top:6px}.folderWorkspace .projectMaterials {padding:0}.folderWorkspace .projectBillActions {display:flex;align-items:center;justify-content:space-between}.folderWorkspace .shoppingCheck {width:17px;height:17px;min-width:17px;padding:0;border:1px solid #ccc;border-radius:4px;background:#fff}.folderWorkspace .shoppingCheck[aria-pressed=true]{background:#171717;color:white}.folderWorkspace .materialExpand {background:none;border:0;text-align:left;display:flex;flex:1;justify-content:space-between;align-items:center;gap:10px}.folderWorkspace button{font-family:Arial,Helvetica,sans-serif;cursor:pointer}.folderWorkspace .productOptions article{border:1px solid #eee;border-radius:12px;padding:16px;background:white}.folderWorkspace .productOptions article.selected{border-color:#777}.folderWorkspace .productOptions article h4{font-size:13px}.folderWorkspace .productOptions article>small{font-size:10px;color:#888}
 .chatKit .historyFolder>summary>button {flex-direction:row}
+.projectCreateBackdrop {position:fixed;inset:0;background:#0005;backdrop-filter:blur(3px);z-index:100}
+.projectCreateDialog {position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:30px;border-radius:20px;border:1px solid #e9e9e9;background:white;box-shadow:0 24px 100px #0003;z-index:101;font-family:Arial,Helvetica,sans-serif;color:#171717;outline:0}
+.projectCreateIcon {display:grid;place-items:center;width:46px;height:46px;border-radius:13px;background:#f5f5f5;margin-bottom:20px}
+.projectCreateDialog h2 {font-size:24px;font-weight:500;letter-spacing:-.6px;margin:0 0 10px}
+.projectCreateDialog>p {font-size:13px;line-height:1.7;color:#777;margin:0 0 26px}
+.projectCreateDialog form>label {font-size:12px;font-weight:500;display:block;margin-bottom:9px}
+.projectCreateDialog input {width:100%;padding:13px 14px;border:1px solid #ddd;border-radius:10px;font:14px Arial;background:white;color:#171717;outline:0}
+.projectCreateDialog input:focus {border-color:#777;box-shadow:0 0 0 3px #00000007}
+.projectCreateDialog form>small {display:block;font-size:11px;color:#999;margin:10px 0 24px;line-height:1.6}
+.projectCreateActions {display:flex;justify-content:flex-end;gap:8px}
+.projectCreateActions button {font:12px Arial;border:1px solid #e3e3e3;border-radius:9px;padding:11px 16px;background:white;color:#444;cursor:pointer}
+.projectCreateActions button[type=submit] {background:#171717;border-color:#171717;color:white}
+.projectCreateActions button:disabled {opacity:.5;cursor:default}.projectCreateError{color:#a33;font-size:12px;line-height:1.6}
+.chatKit.projectWorkspace .newFolderForm button {background:#171717;color:white;text-align:center;justify-content:center}
+.chatKit .historyFolder>summary>button {width:auto;min-height:40px;padding:9px 5px;flex:1;flex-direction:row}

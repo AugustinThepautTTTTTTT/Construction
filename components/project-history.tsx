@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Dialog } from "@base-ui-components/react/dialog";
 import { Button } from "@base-ui-components/react/button";
 import { Folder, Plus, MoreHorizontal, ChevronDown } from "lucide-react";
 import type { Project } from "@/lib/domain";
@@ -14,7 +15,6 @@ export function ProjectHistory({
   onFolder,
   onCreate,
   onAssign,
-  onRename,
 }: {
   chats: Project[];
   folders: ProjectFolder[];
@@ -25,14 +25,12 @@ export function ProjectHistory({
   onFolder: (id: string) => void;
   onCreate: (description: string) => Promise<void>;
   onAssign: (chat: string, folder: string | null) => Promise<void>;
-  onRename: (folder: string, title: string) => Promise<void>;
 }) {
+  const [formError, setFormError] = useState("");
   const [creating, setCreating] = useState(false),
     [description, setDescription] = useState(""),
     [saving, setSaving] = useState(false),
-    [dragOver, setDragOver] = useState(""),
-    [rename, setRename] = useState(""),
-    [title, setTitle] = useState("");
+    [dragOver, setDragOver] = useState("");
   const chatRow = (chat: Project) => (
     <div
       key={chat.id}
@@ -87,37 +85,77 @@ export function ProjectHistory({
           <Plus size={15} />
         </Button>
       </div>
-      {creating && (
-        <form
-          className="newFolderForm"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (saving) return;
-            setSaving(true);
-            try {
-              await onCreate(description);
-              setCreating(false);
-              setDescription("");
-            } finally {
-              setSaving(false);
-            }
-          }}
-        >
-          <input
-            autoFocus
-            placeholder="What is this project?"
-            aria-label="Project description"
-            required
-            minLength={2}
-            maxLength={900}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <Button disabled={saving || busy} type="submit">
-            {saving ? "Creating…" : "Create project"}
-          </Button>
-        </form>
-      )}
+      <Dialog.Root
+        open={creating}
+        onOpenChange={(value) => {
+          if (!saving) {
+            setCreating(value);
+            setFormError("");
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="projectCreateBackdrop" />
+          <Dialog.Popup className="projectCreateDialog">
+            <div className="projectCreateIcon">
+              <Folder size={22} />
+            </div>
+            <Dialog.Title>Create a project</Dialog.Title>
+            <Dialog.Description>
+              Keep your chats, visuals, materials and work instructions
+              together.
+            </Dialog.Description>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (saving) return;
+                setSaving(true);
+                setFormError("");
+                try {
+                  await onCreate(description);
+                  setCreating(false);
+                  setDescription("");
+                } catch (e) {
+                  setFormError(
+                    e instanceof Error
+                      ? e.message
+                      : "Could not create your project.",
+                  );
+                } finally {
+                  setSaving(false);
+                }
+              }}
+            >
+              <label htmlFor="project-description">Project name or idea</label>
+              <input
+                id="project-description"
+                autoFocus
+                placeholder="e.g. Salle de bain"
+                required
+                minLength={2}
+                maxLength={900}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+              <small>Move chats into this project from the sidebar.</small>
+              {formError && (
+                <p role="alert" className="projectCreateError">
+                  {formError}
+                </p>
+              )}
+              <div className="projectCreateActions">
+                <Dialog.Close disabled={saving}>Cancel</Dialog.Close>
+                <Button
+                  disabled={saving || busy || description.trim().length < 2}
+                  type="submit"
+                >
+                  {saving ? "Creating…" : "Create project"}
+                </Button>
+              </div>
+            </form>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
       {folders.map((folder) => (
         <details
           key={folder.id}
@@ -157,36 +195,7 @@ export function ProjectHistory({
               <Folder size={15} />
               <span>{folder.title}</span>
             </Button>
-            <Button
-              aria-label={`Rename ${folder.title}`}
-              onClick={(e) => {
-                e.preventDefault();
-                setRename(folder.id);
-                setTitle(folder.title);
-              }}
-            >
-              <MoreHorizontal size={14} />
-            </Button>
           </summary>
-          {rename === folder.id && (
-            <form
-              className="newFolderForm"
-              onSubmit={async (e) => {
-                e.preventDefault();
-                await onRename(folder.id, title);
-                setRename("");
-              }}
-            >
-              <input
-                aria-label="Project title"
-                required
-                maxLength={65}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-              <Button type="submit">Save name</Button>
-            </form>
-          )}
           <div className="folderChats">
             {chats.filter((chat) => chat.folderId === folder.id).map(chatRow)}
             {!chats.some((chat) => chat.folderId === folder.id) && (

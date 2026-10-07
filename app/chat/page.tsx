@@ -158,6 +158,8 @@ export default function ChatPage() {
           })
           .catch(() => {});
         setActive(selected);
+        if (selected && !q.get("folder"))
+          setProjectPanelOpen(window.matchMedia("(min-width:1021px)").matches);
         if (q.get("folder")) setSelectedFolder(q.get("folder")!);
         setReady(true);
         let draft: unknown;
@@ -262,7 +264,7 @@ export default function ChatPage() {
     setSelectedFolder("");
     setActive(id);
     setPanelFocus("visuals");
-    setProjectPanelOpen(false);
+    setProjectPanelOpen(window.matchMedia("(min-width:1021px)").matches);
     setHighlight(null);
     setInput("");
     setNotice("");
@@ -298,24 +300,7 @@ export default function ChatPage() {
       setNotice(
         e instanceof Error ? e.message : "Could not create the project.",
       );
-    }
-  }
-  async function renameFolder(folderId: string, title: string) {
-    try {
-      const r = await fetch("/api/folders", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "rename", folderId, title }),
-      });
-      if (!r.ok) throw new Error((await r.json()).error);
-      setFolders((list) =>
-        list.map((f) => (f.id === folderId ? { ...f, title } : f)),
-      );
-      setProjectSignal((s) => s + 1);
-    } catch (e) {
-      setNotice(
-        e instanceof Error ? e.message : "Could not rename the project.",
-      );
+      throw e;
     }
   }
   useEffect(() => {
@@ -757,7 +742,6 @@ export default function ChatPage() {
           }}
           onCreate={createProject}
           onAssign={assignChat}
-          onRename={renameFolder}
         />
         <Link className="account cleanAccount" href="/account">
           <Settings size={17} />

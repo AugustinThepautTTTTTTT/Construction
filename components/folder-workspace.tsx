@@ -7,10 +7,11 @@ import {
   MessagesSquare,
   ArrowUpRight,
 } from "lucide-react";
+import { materialBills } from "@/lib/material-bills";
 import type { Artifact } from "@/lib/room-artifacts";
 import { ProjectMaterials } from "./project-materials";
 import { ConstructionPlanView } from "./construction-plan";
-import { ChatArtifact } from "./chat-artifact";
+import { ProjectVisualGallery } from "./project-visual-gallery";
 export function FolderWorkspace({
   id,
   signal,
@@ -68,6 +69,15 @@ export function FolderWorkspace({
       80,
     );
   }
+  const displayedArtifacts = feed.artifacts.filter(
+    (a) =>
+      a.kind !== "estimate" ||
+      a.id === focus.id ||
+      a.id ===
+        materialBills(
+          feed.artifacts.filter((other) => other.project_id === a.project_id),
+        )[0]?.id,
+  );
   const sections = [
     { kind: "visual", title: "Visuals", icon: Image },
     { kind: "estimate", title: "Bill of materials", icon: ClipboardList },
@@ -91,15 +101,30 @@ export function FolderWorkspace({
             <span>
               {s.title}
               <small>
-                {feed.artifacts.filter((a) => a.kind === s.kind).length} saved
+                {displayedArtifacts.filter((a) => a.kind === s.kind).length}{" "}
+                saved
               </small>
             </span>
           </Button>
         ))}
       </nav>
       <div className="folderAssetList">
-        {feed.artifacts
-          .filter((a) => a.kind === tab)
+        {tab === "visual" &&
+          displayedArtifacts.some((a) => a.kind === "visual") && (
+            <ProjectVisualGallery
+              artifacts={displayedArtifacts.filter((a) => a.kind === "visual")}
+              unlocked={(a) =>
+                unlocked ||
+                !!feed.chats.find((c) => c.id === a.project_id)?.paid
+              }
+              onChanged={changed}
+              caption={(a) =>
+                feed.chats.find((c) => c.id === a.project_id)?.title
+              }
+            />
+          )}
+        {displayedArtifacts
+          .filter((a) => a.kind === tab && tab !== "visual")
           .map((a) => (
             <section key={a.id} id={`folder-asset-${a.id}`}>
               <h3 className="folderAssetTitle">
@@ -133,20 +158,10 @@ export function FolderWorkspace({
                   onOpen={(id) => show("estimate", id, null)}
                   onMaterial={(id, index) => show("estimate", id, index)}
                 />
-              ) : (
-                <ChatArtifact
-                  id={a.id}
-                  artifact={a}
-                  unlocked={
-                    unlocked ||
-                    !!feed.chats.find((c) => c.id === a.project_id)?.paid
-                  }
-                  onChanged={changed}
-                />
-              )}
+              ) : null}
             </section>
           ))}
-        {!feed.artifacts.some((a) => a.kind === tab) && (
+        {!displayedArtifacts.some((a) => a.kind === tab) && (
           <p className="folderEmpty">
             Saved {sections.find((s) => s.kind === tab)?.title.toLowerCase()}{" "}
             from this project’s chats will appear here.

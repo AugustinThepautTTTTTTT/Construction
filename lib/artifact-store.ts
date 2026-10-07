@@ -1,6 +1,10 @@
 import { cadUpdateSchema, cadPlan } from "./cad/model";
 import { getCad, saveCad } from "./cad/store";
-import { searchMaterialProduct, productLookupSchema } from "./material-research";
+import {
+  searchMaterialProduct,
+  productLookupSchema,
+  ProductSearchError,
+} from "./material-research";
 import { randomUUID } from "node:crypto";
 import type { Queryable } from "./repository";
 import {
@@ -16,6 +20,7 @@ export async function runRoomTool(
   projectId: string,
   name: string,
   args: unknown,
+  options?: { productSearch?: boolean },
 ) {
   const owned = await db.query(
     "SELECT id FROM roomwise.projects WHERE id=$1 AND user_id=$2",
@@ -23,25 +28,83 @@ export async function runRoomTool(
   );
   if (!owned.rows.length) throw new Error("Room not found.");
   if (name === "search_material_product") {
-    const lookup=productLookupSchema.parse(args);
-    const bill=await db.query("SELECT id,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",[lookup.estimateId,projectId,owner]);
-    if(!bill.rows.length)throw new Error("Choose a material bill from this room.");
-    const comparison=await searchMaterialProduct(db,owner,lookup.estimateId,bill.rows[0].data,lookup.index,lookup.preferences);
-    return {id:lookup.estimateId,kind:"estimate",productIndex:lookup.index,products:comparison.products,summary:"Product comparison saved for the requested item. The user can compare packs, quantities, prices and links, then choose a product in Materials. Do not claim an entire basket was researched."};
+    const lookup = productLookupSchema.parse(args);
+    const bill = await db.query(
+      "SELECT id,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",
+      [lookup.estimateId, projectId, owner],
+    );
+    if (!bill.rows.length)
+      throw new Error("Choose a material bill from this room.");
+    const comparison = await searchMaterialProduct(
+      db,
+      owner,
+      lookup.estimateId,
+      bill.rows[0].data,
+      lookup.index,
+      lookup.preferences,
+    );
+    return {
+      id: lookup.estimateId,
+      kind: "estimate",
+      productIndex: lookup.index,
+      products: comparison.products,
+      summary:
+        "Product comparison saved for the requested item. The user can compare packs, quantities, prices and links, then choose a product in Materials. Do not claim an entire basket was researched.",
+    };
   }
   if (name === "update_room_cad") {
-    const {model,baseRevision,changeSummary} = cadUpdateSchema.parse(args);
-    const current = await getCad(db,owner,projectId);
-    const cad = await saveCad(db,owner,projectId,baseRevision,{...model,...(current?.model.appearance?{appearance:current.model.appearance}:{}),confirmed:false},"ai",changeSummary);
-    return {id:projectId,kind:"cad",revision:cad.revision,summary:changeSummary};
+    const { model, baseRevision, changeSummary } = cadUpdateSchema.parse(args);
+    const current = await getCad(db, owner, projectId);
+    const cad = await saveCad(
+      db,
+      owner,
+      projectId,
+      baseRevision,
+      {
+        ...model,
+        ...(current?.model.appearance
+          ? { appearance: current.model.appearance }
+          : {}),
+        confirmed: false,
+      },
+      "ai",
+      changeSummary,
+    );
+    return {
+      id: projectId,
+      kind: "cad",
+      revision: cad.revision,
+      summary: changeSummary,
+    };
+  }
+  if (name === "create_material_estimate" && options?.productSearch) {
+    const existing = await db.query(
+      "SELECT id FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='estimate' LIMIT 1",
+      [projectId, owner],
+    );
+    if (existing.rows.length)
+      throw new ProductSearchError(
+        "Use the existing bill for this product search; a comparison cannot replace or shorten it.",
+      );
   }
   let kind: string, data: Record<string, unknown>;
   if (name === "create_construction_plan") {
     const plan = constructionSchema.parse(args);
-    const bill = await db.query("SELECT id,kind,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",[plan.estimateId,projectId,owner]);
-    if(!bill.rows.length)throw new Error("Create the complete bill of materials before the construction plan.");
-    validateConstruction(plan,{id:bill.rows[0].id,kind:bill.rows[0].kind,data:bill.rows[0].data});
-    kind="construction";data=plan;
+    const bill = await db.query(
+      "SELECT id,kind,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",
+      [plan.estimateId, projectId, owner],
+    );
+    if (!bill.rows.length)
+      throw new Error(
+        "Create the complete bill of materials before the construction plan.",
+      );
+    validateConstruction(plan, {
+      id: bill.rows[0].id,
+      kind: bill.rows[0].kind,
+      data: bill.rows[0].data,
+    });
+    kind = "construction";
+    data = plan;
   } else if (name === "prepare_room_visual") {
     const visual = visualSchema.parse(args);
     const photo = await db.query(
@@ -55,8 +118,8 @@ export async function runRoomTool(
   } else if (name === "create_material_estimate") {
     const estimate = estimateSchema.parse(args);
 
-    const cad = await getCad(db,owner,projectId);
-    const plan = cad ? cadPlan(cad.model) : null as RoomPlan | null;
+    const cad = await getCad(db, owner, projectId);
+    const plan = cad ? cadPlan(cad.model) : (null as RoomPlan | null);
     const calculations = calculateEstimate(estimate, plan);
     kind = "estimate";
     data = {
@@ -81,7 +144,11 @@ export async function runRoomTool(
     "INSERT INTO roomwise.artifacts(id,user_id,project_id,kind,data,model) VALUES($1,$2,$3,$4,$5::jsonb,'gpt-6-luna')",
     [id, owner, projectId, kind, JSON.stringify(data)],
   );
-  if(kind === "visual")await db.query("UPDATE roomwise.artifacts SET status='queued' WHERE id=$1 AND user_id=$2",[id,owner]);
+  if (kind === "visual")
+    await db.query(
+      "UPDATE roomwise.artifacts SET status='queued' WHERE id=$1 AND user_id=$2",
+      [id, owner],
+    );
   return {
     id,
     products: [],

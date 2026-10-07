@@ -122,6 +122,7 @@ export type PriceSource = {
   note: string;
 };
 export type Artifact = {
+  project_id?: string;
   id: string;
   kind: "plan" | "estimate" | "visual" | "construction";
   data: any;

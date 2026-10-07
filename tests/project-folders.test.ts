@@ -73,8 +73,11 @@ test("folders collect existing assets, while assignment and aggregation reject o
   );
   assert.equal((await repo.get(owner, a.id))?.folderId, null);
   assert.equal(
-    (await db.query("SELECT count(*)::int n FROM roomwise.artifacts")).rows[0]
-      .n,
+    (
+      await db.query<{ n: number }>(
+        "SELECT count(*)::int n FROM roomwise.artifacts",
+      )
+    ).rows[0].n,
     2,
   );
   await db.close();

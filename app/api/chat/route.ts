@@ -1,7 +1,7 @@
 import {creditAccount, debitCredits, refundCredits, CreditError} from "@/lib/credits";
 import { ProductSearchError } from "@/lib/material-research";
 import { bindVisualPhoto, VisualSourceError } from "@/lib/visual-recovery";
-import { isLayoutRequest, isProductSearchRequest } from "@/lib/project-intent";
+import { isLayoutRequest, isProductSearchRequest, isVisualRequest, implementationRequest } from "@/lib/project-intent";
 import { getCad, CadConflict } from "@/lib/cad/store";
 import OpenAI from "openai";
 import { randomUUID } from "node:crypto";
@@ -109,6 +109,8 @@ export async function POST(r: NextRequest) {
           : index === rows.findIndex((other) => other.kind === row.kind),
       );
       const products = isProductSearchRequest(parsed.data.message, p.messages);
+      const visuals = isVisualRequest(parsed.data.message, p.messages);
+      const requested = implementationRequest(parsed.data.message);
       const hasBill = previous.rows.some((row) => row.kind === "estimate");
       const currentCad = await getCad(db, user.id, p.id);
       const layout = isLayoutRequest(parsed.data.message, !!currentCad);
@@ -116,7 +118,8 @@ export async function POST(r: NextRequest) {
         (account.plan === "free" ? "FREE PLAN: Help draft ideas, analyse room photos and prepare concept images. Do not produce a bill of materials, quantities/cost tables, product research, construction checklist or CAD. Explain these capabilities are included in Basic and Pro when requested.\n" : "") + ROOM_PLANNER_PROMPT +
         "\n" +
         skillInstructions() +
-        `\nPROJECT MODE: ${layout ? "Layout / geometry: use the saved CAD when a spatial change is requested." : "Refurbishment: do not create or update CAD. Lead with photo concepts and materials. For quantities use existing CAD or explicit provisional manual quantities; never create a 2D plan. Construction plans are ordered work steps linked to the BOM, not geometry."}\n` +
+        `\nCURRENT REQUEST: ${visuals ? "A new visual is requested; generate it automatically from an original room photo." : "No new image is requested. Do not create or update a visual, even if photos or earlier concepts exist. Use them only as reference for the requested answer, BOM or work plan."} ${requested.materials ? "Save the requested complete bill of materials." : ""} ${requested.construction ? "Save the requested work instructions linked to the bill of materials." : ""}\n` +
+        `\nPROJECT MODE: ${layout ? "Layout / geometry: use the saved CAD when a spatial change is requested." : "Refurbishment: do not create or update CAD. Match the current request. For quantities use existing CAD or explicit provisional manual quantities; never create a 2D plan. Construction plans are ordered work steps linked to the BOM, not geometry."}\n` +
         (products && hasBill
           ? "\nPRODUCT SEARCH MODE: Use search_material_product with the existing saved BOM ID and its exact row index. Do not create, replace or shorten a BOM for a shopping comparison. If the requested material is missing, explain that it needs adding to the existing bill first. Product search is available in this conversation; call the tool before claiming real references or availability. Only a user selection updates that row.\n"
           : "") +
@@ -204,7 +207,14 @@ export async function POST(r: NextRequest) {
               });
               let currentInput = input;
               let toolCount = 0;
+              let billSaved = false, workSaved = false;
               for (let round = 0; round < 3; round++) {
+                const requiredTool = account.plan !== 'free' && round < 2
+                  ? !billSaved && !(products && hasBill) && (requested.materials || (requested.construction && !hasBill))
+                    ? 'create_material_estimate'
+                    : requested.construction && !workSaved && (hasBill || billSaved)
+                      ? 'create_construction_plan' : null
+                  : null;
                 const response = await client.responses.create({
                   model: policy.model,
                   instructions,
@@ -221,8 +231,10 @@ export async function POST(r: NextRequest) {
                           products,
                           hasBill,
                           paid: account.plan !== "free",
+                          visuals,
                         })
                       : [],
+                  ...(requiredTool ? {tool_choice:{type:'function' as const,name:requiredTool}} : {}),
                   parallel_tool_calls: false,
                 });
                 let final: OpenAI.Responses.Response | undefined;
@@ -307,13 +319,15 @@ export async function POST(r: NextRequest) {
                             photos.map((photo) => photo.id),
                           )
                         : JSON.parse(call.arguments),
-                      { productSearch: products },
+                      { productSearch: products, visuals },
                     );
                     const artifact = result as {
                       id: string;
                       kind: string;
                       revision?: number;
                     };
+                    if(artifact.kind==='estimate')billSaved=true;
+                    if(artifact.kind==='construction')workSaved=true;
                     if (artifact.kind === "cad") {
                       emit({
                         type: "cad",

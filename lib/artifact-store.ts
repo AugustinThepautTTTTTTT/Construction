@@ -21,8 +21,10 @@ export async function runRoomTool(
   projectId: string,
   name: string,
   args: unknown,
-  options?: { productSearch?: boolean },
+  options?: { productSearch?: boolean; visuals?: boolean },
 ) {
+  if(name==='prepare_room_visual'&&options?.visuals===false)
+    throw new Error('This request is for materials or work instructions. Save those requested deliverables; do not create an image.');
   const owned = await db.query(
     "SELECT id FROM roomwise.projects WHERE id=$1 AND user_id=$2",
     [projectId, owner],

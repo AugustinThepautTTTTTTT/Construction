@@ -8,12 +8,11 @@ import { z } from "zod";
 import { identity, sameOrigin, error } from "@/lib/server";
 import { database, rateLimit } from "@/lib/database";
 import { aiPolicy } from "@/lib/ai-budget";
-import { imageLimits } from "@/lib/image-limits";
+import {visualRequestedForArtifact} from "@/lib/project-intent";
 import { visualSchema } from "@/lib/room-artifacts";
 import {
   roomVisualPrompt,
   ROOM_IMAGE_MODEL,
-  IMAGE_RESERVATION_CENTS,
 } from "@/lib/room-visual";
 export const maxDuration = 300;
 export async function GET(
@@ -58,13 +57,14 @@ export async function POST(
     if (!z.string().uuid().safeParse(id).success)
       return error("Concept not found.", 404);
     const result = await db.query(
-      "SELECT a.*,p.paid FROM roomwise.artifacts a JOIN roomwise.projects p ON p.id=a.project_id WHERE a.id=$1 AND a.user_id=$2 AND a.kind='visual'",
+      "SELECT a.*,p.messages FROM roomwise.artifacts a JOIN roomwise.projects p ON p.id=a.project_id WHERE a.id=$1 AND a.user_id=$2 AND a.kind='visual'",
       [id, user.id],
     );
     if (!result.rows.length) return error("Concept not found.", 404);
     const a = result.rows[0];
     if (a.image) return NextResponse.json({ ready: true });
     const rejectQueued=async(message:string,status=400)=>{if(a.status==="queued")await db.query("UPDATE roomwise.artifacts SET status='failed',data=data || $1::jsonb WHERE id=$2 AND user_id=$3 AND status='queued'",[JSON.stringify({generationError:message}),id,user.id]);return error(message,status);};
+    if(!visualRequestedForArtifact(a.messages||[],id))return rejectQueued("This message requested materials or work instructions, so no image will be generated.");
     const policy = aiPolicy();
     if (!policy)
       return rejectQueued("Image generation is temporarily unavailable.");

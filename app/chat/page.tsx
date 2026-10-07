@@ -5,7 +5,7 @@ import "@/components/chat-artifact.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
 import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Zap } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Camera, Download, Plus, Settings, X } from "lucide-react";
 import Link from "next/link";
@@ -732,7 +732,7 @@ export default function ChatPage() {
               ? folders.find((f) => f.id === selectedFolder)?.title
               : project?.title || "Roomwise"}
           </span>
-          <div className="workspaceActions"><Link className={"creditBalance"+((cap.user?.credits ?? 0)<5?" low":"")} href="/account" title="View plan and credit activity"><b>{cap.user?.credits ?? 0}</b><span>credits left</span></Link>
+          <div className="workspaceActions">
             {project && !selectedFolder && (
               <Button
                 className="openProject"
@@ -768,6 +768,7 @@ export default function ChatPage() {
             </Button>
           </div>
         </header>
+        {cap.user?.email && <div className="chatCreditRow"><Link className={"creditBalance"+((cap.user.credits ?? 0)<5?" low":"")} href="/account" title="View plan and credit activity" aria-label={`${cap.user.credits ?? 0} credits available. View credit activity`}><Zap size={15} fill="currentColor" aria-hidden="true"/><b>{cap.user.credits ?? 0}</b><span>credits left</span></Link></div>}
         {notice && (
           <div className="cleanNotice" role="status">
             <span>{notice}</span>

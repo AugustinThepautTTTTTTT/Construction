@@ -1,4 +1,41 @@
 // Routing is application logic; no extra model request is needed.
+function normalizedRequest(message:string){
+  return message.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’‘]/g,"'");
+}
+export function implementationRequest(message:string){
+  const text=normalizedRequest(message);
+  return {
+    materials:/\b(?:bom|bill of materials?|material(?:s)? (?:list|bill|quantities)|list of (?:the )?materials?|shopping list|quantities|quantity assessment|liste (?:des?|de) (?:materiaux|materiels|fournitures)|quantites|nomenclature)\b/.test(text),
+    construction:/\b(?:work(?:ing)? (?:steps|instructions|plan)|construction (?:plan|steps)|scope of work|build(?:ing)? (?:steps|instructions)|how (?:do i|to) (?:build|install|paint)|etapes (?:de|des?|pour)|plan (?:de |des )?(?:travaux|construction)|mode operatoire|instructions (?:de|des?|pour)|how to implement|implementation plan)\b/.test(text),
+  };
+}
+export function isVisualRequest(message:string,history:{role:string;content:string}[]=[]):boolean {
+  const text=normalizedRequest(message);
+  // Negative clauses are removed before considering a positive request elsewhere.
+  const positive=text.replace(/\b(?:but|mais)\b/g,',').replace(/\b(?:don't|do not|no|without|sans|pas de|ne pas)\s+(?:(?:generate|generating|create|creating|make|show|want|need|a|an|any|the|un|une|de|generer|creer|faire|nouvelle?|nouveau|new|another|more)\s+)*(?:images?|photos?|visuals?|visuels?|concepts?|rendus?)\b[^.!?;,]*(?:[.!?;,]|$)/g,' ');
+  const explicit=/\b(?:generate|create|make|show|render|visualize|visualise|draw|see|want|like|veux|souhaite|aimerais|generer|creer|faire|montre\w*|voir|dessine\w*|visualise\w*)\b[^.!?;,]{0,75}\b(?:images?|photos?|visuals?|concepts?|renders?|renderings?|before.{0,5}after|visuels?|rendus?)\b|\b(?:new|another|updated|different|nouvelle?|autre|nouveau)\s+(?:images?|photos?|visuals?|concepts?|renders?|visuels?|rendus?)\b/.test(positive);
+  if(explicit)return true;
+  const implementation=implementationRequest(positive);
+  if(implementation.materials||implementation.construction||isProductSearchRequest(positive))return false;
+  if(/\b(?:condition|damage|cracks?|mould|mold|damp|diagnos\w*|etat|humidite|moisissure)\b/.test(positive))return false;
+  if(/\b(?:no|without|sans|pas de|don't|do not|ne pas)\b[^.!?;,]{0,45}\b(?:images?|visuals?|visuels?|photos?|concepts?|rendus?)\b/.test(text))return false;
+  // A new design request can create a concept; existing photographs or old
+  // concepts alone never carry image permission into a subsequent turn.
+  if(/\b(?:moderni[sz]\w*|refurbish\w*|redesign\w*|redecorat\w*|renovate\w*|refresh|improv\w*|transform\w*|relook\w*|renov\w*|rafraich\w*|amelior\w*)\b[^.!?]{0,80}\b(?:room|space|living|kitchen|bathroom|bedroom|piece|salon|cuisine|chambre|salle)\b/.test(positive))return true;
+  if(/\b(?:make|change|repaint|paint|replace|add|swap|rendre|changer|repeindre|remplacer|ajouter)\b[^.!?]{0,80}\b(?:warmer|brighter|modern|colour|color|walls?|floor|curtains?|sofa|green|blue|white|beige|terracotta|bois|murs?|couleur|plancher|canape|vert|bleu|blanc|clair|moderne)\b/.test(positive))return true;
+  if(!/^(?:yes|yes please|ok|okay|go ahead|do it|please do|oui|oui merci|vas-y|allez)[.!\s]*$/.test(positive.trim()))return false;
+  const offer=history.filter(m=>m.role==='assistant'&&m.content.trim()).at(-1)?.content||'';
+  // Only a direct offer ending in a question grants short-answer consent.
+  return /[?]/.test(offer)&&/\b(?:image|visual|concept|render|visuel|rendu)\b/.test(normalizedRequest(offer))&&/\b(?:generate|create|show|want|would you like|generer|creer|souhaitez|voulez)\b/.test(normalizedRequest(offer));
+}
+
+export function visualRequestedForArtifact(messages:{role:string;content:string;artifactIds?:string[]}[],id:string){
+  const at=messages.findIndex(m=>m.role==='assistant'&&m.artifactIds?.includes(id));
+  if(at<0)return true; // Legacy assets without a chat association remain accessible.
+  for(let i=at-1;i>=0;i--)if(messages[i].role==='user')return isVisualRequest(messages[i].content,messages.slice(0,i));
+  return true;
+}
+
 export function isLayoutRequest(message: string, hasCad = false) {
   const text = message
     .toLowerCase()

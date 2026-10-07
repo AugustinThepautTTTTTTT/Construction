@@ -1,0 +1,52 @@
+.chatKit .chatVisualResult {margin:20px 0 8px;max-width:100%;min-width:0}
+.chatKit .chatVisual {position:relative;width:min(100%,560px);margin:0;border-radius:20px;overflow:hidden;background:#f5f5f5;transition:width .35s ease}
+.chatKit .chatVisual.comparing {width:100%}
+.chatKit .chatVisualTools {position:absolute;top:12px;right:12px;z-index:2;display:flex;gap:5px}
+.chatKit .chatVisualTools button,.chatKit .chatVisualTools a {display:inline-flex;align-items:center;justify-content:center;padding:8px 11px;border:1px solid #0000000d;border-radius:20px;background:#ffffffed;backdrop-filter:blur(10px);color:#171717;font:12px/1 Arial,sans-serif;box-shadow:0 1px 6px #0000000a;cursor:pointer;text-decoration:none}
+.chatKit .chatVisualTools button[aria-pressed=true] {background:#171717;color:white}
+.chatKit .chatVisualTools button:disabled {display:none}
+.chatKit .chatVisualSingle {position:relative;perspective:1400px;min-height:180px}
+.chatKit .chatVisualFlip {position:absolute;inset:0;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.7,.2,1)}
+.chatKit .chatVisualFlip.flipped {transform:rotateY(180deg)}
+.chatKit .chatVisualFace {position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.chatKit .chatVisualBack {transform:rotateY(180deg)}
+.chatKit .chatVisualFace img {width:100%;height:100%;object-fit:contain;display:block}
+.chatKit .chatVisualLabel {position:absolute;bottom:13px;left:13px;padding:6px 10px;background:#ffffffed;border-radius:20px;font-size:11px;color:#424242}
+.chatKit .chatVisualPair {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:3px;padding-top:52px;animation:chatCompareReveal .4s ease-out}
+.chatKit .chatVisualPair figure {margin:0;min-width:0}
+.chatKit .chatVisualPair img {display:block;width:100%;height:clamp(180px,28vw,360px);object-fit:contain;background:#eee}
+.chatKit .chatVisualPair figcaption {padding:10px 14px;font-size:11px;color:#676767}
+@keyframes chatCompareReveal {from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+.chatKit .chatArtifactFooter {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;font-size:11px;color:#767676;max-width:100%}
+.chatKit .chatArtifactFooter button,.chatKit .chatBill footer button {display:inline-flex;align-items:center;gap:5px;white-space:nowrap;background:transparent;border:0;padding:5px 0;color:#676767;font-size:11px;cursor:pointer}
+.chatKit .chatArtifactFooter button:hover,.chatKit .chatBill footer button:hover {color:#000}
+.chatKit .chatVisualPending {width:min(100%,560px);min-height:280px;background:linear-gradient(110deg,#f5f5f5,#fafafa,#f5f5f5);border:1px solid #eee;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;text-align:center;color:#767676;gap:13px}
+.chatKit .chatVisualPending strong {font-size:15px;font-weight:500;color:#424242}
+.chatKit .chatVisualPending p {font-size:12px;line-height:1.6;margin:0;max-width:320px}
+.chatKit .chatVisualPending button {border:1px solid #ddd;background:#fff;border-radius:20px;font-size:12px;padding:8px 14px;cursor:pointer}
+.chatKit .chatArtifactLoading,.chatKit .chatArtifactNotice {font-size:12px;color:#767676;padding:16px 0}
+.chatKit .chatBill {margin:20px 0 8px;border:1px solid #e7e7e7;border-radius:22px;background:white;box-shadow:0 2px 4px #00000006;overflow:hidden;min-width:0}
+.chatKit .chatBill header {padding:24px 26px 18px}
+.chatKit .chatBillEyebrow {display:flex;align-items:center;gap:7px;color:#8f8f8f;font-size:12px}
+.chatKit .chatBill h3 {font:600 23px/1.3 Arial,sans-serif;letter-spacing:-.5px;color:#000;margin:14px 0 8px}
+.chatKit .chatBill header p {font-size:12px;color:#767676;margin:0}
+.chatKit .chatBillRows {padding:0 26px}
+.chatKit .chatBillRows article {display:flex;justify-content:space-between;gap:20px;border-top:1px solid #eee;padding:17px 0;min-width:0}
+.chatKit .chatBillRows article>div:first-child {min-width:0}
+.chatKit .chatBillRows h4 {font:500 14px/1.5 Arial,sans-serif;margin:0;color:#171717}
+.chatKit .chatBillRows p {font-size:12px;line-height:1.5;color:#767676;margin:4px 0 7px;overflow-wrap:anywhere}
+.chatKit .chatBillRows small {font-size:10px;color:#8f8f8f}
+.chatKit .chatBillRows a {display:inline-flex;gap:3px;align-items:center;font-size:11px;color:#424242;text-decoration:none;border-bottom:1px solid #ddd}
+.chatKit .chatBillPrice {flex-shrink:0;text-align:right;display:flex;flex-direction:column;gap:7px;max-width:43%}
+.chatKit .chatBillPrice strong {font-size:13px;font-weight:500;color:#171717}
+.chatKit .chatBillPrice span {font-size:11px;color:#767676}
+.chatKit .chatBillTotal {margin:0 26px;padding:18px 0 0;border-top:1px solid #ddd}
+.chatKit .chatBillTotal>span {display:flex;justify-content:space-between;align-items:center;gap:15px;font-size:13px;color:#424242}
+.chatKit .chatBillTotal strong {font-size:20px;letter-spacing:-.3px;color:#000;font-weight:500;text-align:right}
+.chatKit .chatBillTotal p,.chatKit .chatBillResearch,.chatKit .chatBill details {font-size:11px;line-height:1.7;color:#8f8f8f}
+.chatKit .chatBill details,.chatKit .chatBillResearch {margin:14px 26px}
+.chatKit .chatBill summary {cursor:pointer;color:#676767}
+.chatKit .chatBill footer {display:flex;align-items:center;justify-content:space-between;padding:14px 26px 20px;gap:14px}
+.chatKit .chatBill footer a {display:inline-flex;align-items:center;gap:6px;border:1px solid #e7e7e7;border-radius:20px;padding:8px 12px;font-size:11px;color:#424242;text-decoration:none}
+@media(max-width:700px){.chatKit .chatBill header{padding:20px 18px 16px}.chatKit .chatBillRows{padding:0 18px}.chatKit .chatBill h3{font-size:20px}.chatKit .chatBillTotal{margin:0 18px}.chatKit .chatBillTotal strong{font-size:17px}.chatKit .chatBill footer{padding:14px 18px 18px}.chatKit .chatBill details,.chatKit .chatBillResearch{margin:14px 18px}.chatKit .chatBillRows article{gap:10px}.chatKit .chatBillPrice strong{font-size:12px}.chatKit .chatVisualTools{right:8px;top:8px}.chatKit .chatVisualTools button,.chatKit .chatVisualTools a{padding:8px 9px;font-size:11px}.chatKit .chatArtifactFooter{align-items:flex-start}}
+@media(prefers-reduced-motion:reduce){.chatKit .chatVisual,.chatKit .chatVisualFlip{transition:none}.chatKit .chatVisualPair{animation:none}}

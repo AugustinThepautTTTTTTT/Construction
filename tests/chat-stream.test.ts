@@ -64,6 +64,7 @@ test("interrupted streams and server errors cannot be mistaken for completed rep
 test("assistant replies render headings and lists without executing raw HTML or unsafe links", () => {
   const html = renderToStaticMarkup(
     createElement(ChatMessage, {
+      artifacts: [], unlocked: false, onArtifactsChanged: () => {},
       message: {
         role: "assistant",
         content:

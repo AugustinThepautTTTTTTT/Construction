@@ -6,6 +6,7 @@ export const LUNA_MODEL = "gpt-6-luna";
 // Image edits reserve 50 cents; bounded price research reserves 20 cents.
 // The 5-cent allowance greatly exceeds the documented cost of a bounded call.
 export const AI_CALL_CENTS = 5;
+export const POC_MAX_CENTS = 1000;
 const MAX_INPUT_BYTES = 65536;
 export function aiPolicy(
   env: Record<string, string | undefined> = process.env,
@@ -22,7 +23,7 @@ export function aiPolicy(
     now >= expiry
   )
     return null;
-  return { model: LUNA_MODEL, limitCents: Math.min(limit, 500) };
+  return { model: LUNA_MODEL, limitCents: Math.min(limit, POC_MAX_CENTS) };
 }
 export function boundedInput(
   instructions: string,
@@ -57,13 +58,13 @@ export async function reserveAiCall(
     limitCents < reservationCents
   )
     return false;
-  const limit = Math.min(limitCents, 500);
+  const limit = Math.min(limitCents, POC_MAX_CENTS);
   await db.query(
     "INSERT INTO roomwise.ai_budget(id,limit_cents,reserved_cents) VALUES('poc', $1, 0) ON CONFLICT(id) DO NOTHING",
     [limit],
   );
   const r = await db.query(
-    "UPDATE roomwise.ai_budget SET reserved_cents=reserved_cents+$1,limit_cents=LEAST(limit_cents,$2) WHERE id='poc' AND reserved_cents+$1<=LEAST(limit_cents,$2) RETURNING reserved_cents",
+    "UPDATE roomwise.ai_budget SET reserved_cents=reserved_cents+$1,limit_cents=$2 WHERE id='poc' AND reserved_cents+$1<=$2 RETURNING reserved_cents",
     [reservationCents, limit],
   );
   return r.rows.length === 1;

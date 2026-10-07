@@ -95,6 +95,6 @@ export async function runRoomTool(
         ? "2D plan and material assessment saved; dimensions await user confirmation."
         : kind === "estimate"
           ? "Bill saved with quantities and Excel export. Only products in products have verified provider links/prices; all other lines are estimated allowances. Discuss unmatched items instead of claiming a fully sourced basket."
-          : "Before/after design saved and queued. The application automatically starts one image edit for eligible paid accounts and puts it in the project visual folder. Do not say it is finished yet.",
+          : "Before/after design saved and queued. The application automatically starts one image edit for eligible paid accounts and shows it directly in chat and also saves it in the project visual folder. Do not say it is finished yet.",
   };
 }

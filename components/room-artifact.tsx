@@ -1,6 +1,6 @@
 "use client";
 import { Collapsible } from "@base-ui-components/react/collapsible";
-import { ChevronDown, Download, ExternalLink } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import { Button } from "@base-ui-components/react/button";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/browser-storage";
@@ -8,9 +8,6 @@ import {
   roomMetrics,
   type Artifact,
   type RoomPlan,
-  type Visual,
-  type Estimate,
-  type PriceSource,
 } from "@/lib/room-artifacts";
 function Detail({ title, children }: { title: string; children: React.ReactNode }) {
   return <Collapsible.Root className="artifactDetail"><Collapsible.Trigger className="detailTrigger">{title}<ChevronDown size={14}/></Collapsible.Trigger><Collapsible.Panel className="detailPanel">{children}</Collapsible.Panel></Collapsible.Root>;
@@ -183,25 +180,6 @@ export function RoomArtifact({ id }: { id: string }) {
       setBusy(false);
     }
   }
-  const imageRunning =
-    artifact?.status === "running" &&
-    Date.now() - Date.parse(artifact.data.startedAt || artifact.created_at) <
-      360000;
-  useEffect(() => {
-    if (artifact?.status !== "running") return;
-    let alive = true;
-    const timer = setInterval(() => {
-      api(`/api/artifacts/${id}`)
-        .then((result) => {
-          if (alive) setArtifact(result.artifact);
-        })
-        .catch(() => {});
-    }, 5000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [id, artifact?.status]);
   if (!artifact)
     return (
       <div className="roomArtifact">
@@ -209,20 +187,13 @@ export function RoomArtifact({ id }: { id: string }) {
       </div>
     );
   const plan = artifact.kind === "plan" ? (artifact.data as RoomPlan) : null;
-  const estimate =
-    artifact.kind === "estimate"
-      ? (artifact.data as Estimate & {
-          calculations: any;
-          priceSources: PriceSource[];
-        })
-      : null;
-  const visual = artifact.kind === "visual" ? (artifact.data as Visual) : null;
+  if (!plan) return null;
   return (
     <section className="roomArtifact" aria-label={artifact.data.title}>
       <div className="artifactTitle">
         <h3>{artifact.data.title}</h3>
         <span>
-          {plan ? "2D PLAN" : estimate ? "MATERIALS & COST" : "BEFORE / AFTER"}
+          2D PLAN
         </span>
       </div>
       {plan && (
@@ -256,154 +227,6 @@ export function RoomArtifact({ id }: { id: string }) {
               </ul>
             </div>
           )}
-        </>
-      )}
-      {estimate && (
-        <>
-          <p className="artifactHint">
-            {estimate.city}, {estimate.country} · {estimate.currency} ·{" "}
-            {estimate.calculations.provisional
-              ? "Provisional quantities"
-              : "User-confirmed measurements"}
-          </p>
-          <div className="materialTable">
-            <table>
-              <thead>
-                <tr>
-                  <th>Material</th>
-                  <th>Buy</th>
-                  <th>Cost range</th>
-                  <th>Shop</th>
-                </tr>
-              </thead>
-              <tbody>
-                {estimate.calculations.items.map((item: any) => {
-                  const source = estimate.priceSources?.find(
-                    (s) => s.index === item.index,
-                  );
-                  return (
-                    <tr key={item.index}>
-                      <td>
-                        <strong>{item.item}</strong>
-                        <small>{item.specification}</small>
-                        <small>
-                          {item.base.toFixed(2)} basis × {item.coats} coats +{" "}
-                          {Math.round(item.waste * 100)}% waste
-                          {item.coveragePerUnit
-                            ? ` · ${item.coveragePerUnit} coverage/unit`
-                            : ""}
-                        </small>
-                      </td>
-                      <td>
-                        {item.quantity} {item.unit}
-                      </td>
-                      <td>
-                        {source ? (source.price * item.quantity).toFixed(2) : `${item.low.toFixed(2)}–${item.high.toFixed(2)}`} {estimate.currency}
-                        <small>{source ? "Sourced product subtotal" : "Estimated allowance"}</small>
-                        {source && (
-                          <small>
-                            Researched unit price: {source.price.toFixed(2)}{" "}
-                            {estimate.currency}
-                          </small>
-                        )}
-                      </td>
-                      <td>
-                        {source && (
-                          <a href={source.url} target="_blank" rel="noreferrer">
-                            {source.title} <ExternalLink size={12}/>
-                          </a>
-                        )}
-                        {!source && <small className="unverifiedPrice">No verified product yet</small>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {artifact.data.researchNotice && <p className="artifactHint">{artifact.data.researchNotice}</p>}
-          <strong className="estimateTotal">
-            Planning range: {estimate.calculations.low.toFixed(2)}–
-            {estimate.calculations.high.toFixed(2)} {estimate.currency}
-          </strong>
-          <div className="artifactActions">
-            <a
-              className="artifactDownload"
-              href={`/api/artifacts/${id}/export`}
-            >
-              <Download size={14}/> Export Excel
-            </a>
-            <Button
-              disabled={busy}
-              onClick={() => void action(`/api/artifacts/${id}/prices`)}
-            >
-              {busy ? "Checking local retailers…" : "Refresh provider prices"}
-            </Button>
-          </div>
-          <p className="artifactHint">
-            Prices exclude anything listed below. Researched products may differ
-            in pack coverage; verify delivery, compatibility and checkout price
-            before buying.
-          </p>
-          {!!estimate.exclusions.length && (
-            <Detail title="What’s excluded">
-              <ul>
-                {estimate.exclusions.map((e, i) => (
-                  <li key={i}>{e}</li>
-                ))}
-              </ul>
-            </Detail>
-          )}
-        </>
-      )}
-      {visual && (
-        <>
-          <p>{visual.brief}</p>
-          <div className="beforeAfter">
-            <figure>
-              <img
-                src={`/api/photos/${visual.sourcePhotoId}`}
-                alt="Original room before renovation"
-              />
-              <figcaption>Before · your original photo</figcaption>
-            </figure>
-            {artifact.hasImage ? (
-              <figure>
-                <img
-                  src={`/api/artifacts/${id}/image`}
-                  alt="Illustrative room improvement concept"
-                />
-                <figcaption>After · AI concept</figcaption>
-              </figure>
-            ) : (
-              <div className="afterPlaceholder">
-                {busy
-                  ? "Creating your concept. This can take a few minutes…"
-                  : "Your improvement concept will appear here."}
-              </div>
-            )}
-          </div>
-          {!artifact.hasImage && (
-            <Button
-              disabled={busy || imageRunning}
-              onClick={() => void action(`/api/artifacts/${id}/image`)}
-            >
-              {busy || imageRunning
-                ? "Generating concept…"
-                : "Generate before / after"}
-            </Button>
-          )}
-          <p className="artifactHint">
-            One image per click, up to two concepts per room. Review geometry
-            and retained elements; this is an illustration.
-          </p>
-          <Detail title="Elements to preserve">
-            <ul>
-              {visual.retain.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ul>
-          </Detail>
         </>
       )}
       {!!artifact.data.assumptions?.length && (

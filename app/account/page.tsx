@@ -1,36 +1,22 @@
 "use client";
+import "./account.css";
+import { AccountSettings, type Account } from "@/components/account-settings";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
   User,
-  Lock,
-  LogOut,
-  CreditCard,
 } from "lucide-react";
 import { api } from "@/lib/browser-storage";
 import { safeNext } from "@/lib/domain";
-type Account = {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    pro_active: boolean;
-    email_verified: boolean;
-  };
-  stats: { rooms: number; unlocked: number };
-  billingAvailable: boolean;
-  subscription: boolean;
-};
 export default function AccountPage() {
   const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">(
     "signup",
   );
   const [email, setEmail] = useState(""),
     [name, setName] = useState(""),
-    [password, setPassword] = useState(""),
-    [currentPassword, setCurrentPassword] = useState("");
+    [password, setPassword] = useState("");
   const [status, setStatus] = useState(""),
     [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false),
@@ -109,12 +95,12 @@ export default function AccountPage() {
       localStorage.removeItem(`roomwise:cloud-cache:${account.user.id}`);
     setAccount(null);
     setPassword("");
-    setCurrentPassword("");
     setName("");
     setEmail("");
     setMode("login");
     setStatus(all ? "Signed out on every device." : "Signed out.");
   }
+  if (account && mode !== "reset") return <AccountSettings account={account} mail={mail} onSaved={refresh} onLogout={logout}/>;
   return (
     <main className="accountPage">
       <Link href="/chat" className="accountBack">
@@ -128,145 +114,7 @@ export default function AccountPage() {
         <div className="mailIcon">
           <User />
         </div>
-        {account && mode !== "reset" ? (
-          <>
-            <p className="kicker">YOUR ACCOUNT</p>
-            <h1>
-              Your rooms.
-              <br />
-              <em>All together.</em>
-            </h1>
-            <p>{account.user.email}</p>
-            <div className="accountSummary">
-              <div>
-                <b>{account.stats.rooms}</b>
-                <span>Saved rooms</span>
-              </div>
-              <div>
-                <b>{account.stats.unlocked}</b>
-                <span>Room passes</span>
-              </div>
-              <div>
-                <b>{account.user.pro_active ? "Pro" : "Free"}</b>
-                <span>Current plan</span>
-              </div>
-            </div>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void action(async () => {
-                  await api("/api/account", { name });
-                  await refresh();
-                  setStatus("Profile saved.");
-                });
-              }}
-            >
-              <label htmlFor="name">Your name</label>
-              <input
-                id="name"
-                autoComplete="name"
-                value={name}
-                maxLength={80}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <button className="secondary wide" disabled={busy}>
-                Save profile
-              </button>
-            </form>
-            <div className="accountSection">
-              <h2>Payments & subscription</h2>
-              <p>
-                All payments are in Stripe test mode. No real charge is made.
-              </p>
-              <button
-                className="secondary wide"
-                disabled={busy || !account.billingAvailable}
-                onClick={() =>
-                  void action(async () => {
-                    const r = await api("/api/billing/portal", {});
-                    window.location.assign(r.url);
-                  })
-                }
-              >
-                <CreditCard size={16} />
-                Manage test billing
-              </button>
-              {!account.billingAvailable && (
-                <small>
-                  Billing becomes available after your first checkout.
-                </small>
-              )}
-            </div>
-            <form
-              className="accountSection"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void action(async () => {
-                  await api("/api/auth/password", {
-                    currentPassword,
-                    newPassword: password,
-                  });
-                  setPassword("");
-                  setCurrentPassword("");
-                  setStatus(
-                    "Password updated. Other devices have been signed out.",
-                  );
-                });
-              }}
-            >
-              <h2>Password</h2>
-              <label htmlFor="current-password">Current password</label>
-              <input
-                id="current-password"
-                type="password"
-                autoComplete="current-password"
-                value={currentPassword}
-                maxLength={128}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
-              <label htmlFor="new-password">
-                New password · at least 12 characters
-              </label>
-              <input
-                id="new-password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                minLength={12}
-                maxLength={128}
-                required
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button className="secondary wide" disabled={busy}>
-                <Lock size={16} />
-                Update password
-              </button>
-            </form>
-            {!mail && (
-              <p className="accountHint">
-                Email recovery is not enabled yet. Keep your password somewhere
-                safe.
-              </p>
-            )}
-            <div className="accountActions">
-              <button
-                className="textLink"
-                disabled={busy}
-                onClick={() => void action(() => logout())}
-              >
-                <LogOut size={16} />
-                Sign out
-              </button>
-              <button
-                className="textLink"
-                disabled={busy}
-                onClick={() => void action(() => logout(true))}
-              >
-                Sign out all devices
-              </button>
-            </div>
-          </>
-        ) : (
+        {
           <>
             <p className="kicker">YOUR SAVED ROOMS</p>
             <h1>
@@ -424,7 +272,7 @@ export default function AccountPage() {
               </p>
             )}
           </>
-        )}
+        }
         {status && (
           <div className="accountStatus" role="status">
             {status}

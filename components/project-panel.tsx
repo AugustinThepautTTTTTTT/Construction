@@ -10,13 +10,14 @@ const CadStudio=dynamic(()=>import("./cad/studio").then(m=>m.CadStudio),{ssr:fal
 export type ProjectHighlight={id:string;version:number}|null;
 export type ProjectTab="visuals"|"materials"|"layout";
 type Assets={artifacts:Artifact[];photos:{id:string;created_at:string}[];hasCad:boolean};
-export function ProjectPanel({projectId,signal,focus,highlight,mobileOpen,busy,unlocked,onClose,onAsk,onDirtyChange}:{projectId:string;signal:number;focus:ProjectTab;highlight:ProjectHighlight;mobileOpen:boolean;busy:boolean;unlocked:boolean;onClose:()=>void;onAsk:(text:string)=>void;onDirtyChange:(dirty:boolean)=>void}){
+export function ProjectPanel({projectId,signal,focus,highlight,mobileOpen,busy,unlocked,onClose,onAsk,onDirtyChange,onArtifacts}:{projectId:string;signal:number;focus:ProjectTab;highlight:ProjectHighlight;mobileOpen:boolean;busy:boolean;unlocked:boolean;onClose:()=>void;onAsk:(text:string)=>void;onDirtyChange:(dirty:boolean)=>void;onArtifacts:(projectId:string,artifacts:Artifact[])=>void}){
  const [assets,setAssets]=useState<Assets>({artifacts:[],photos:[],hasCad:false}),[tab,setTab]=useState<ProjectTab>(focus),[compare,setCompare]=useState<Artifact|null>(null),[billId,setBillId]=useState(""),[notice,setNotice]=useState(""),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[cadEditing,setCadEditing]=useState(false);
  const seenHighlight=useRef("");
  const attempted=useRef(new Set<string>()),dirty=useRef(false),mounted=useRef(true),request=useRef(0),controller=useRef<AbortController|null>(null);
  const load=useCallback(async()=>{const serial=++request.current;controller.current?.abort();const abort=new AbortController();controller.current=abort;try{const r=await fetch(`/api/projects/${projectId}/assets`,{signal:abort.signal}),data=await r.json();if(!r.ok)throw new Error(data.error);if(mounted.current&&serial===request.current){setAssets(data);setNotice("");}}catch(e){if(mounted.current&&!abort.signal.aborted)setNotice(e instanceof Error?e.message:"Could not load your project.");}finally{if(mounted.current&&serial===request.current)setLoading(false);}},[projectId]);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;controller.current?.abort();};},[]);
  useEffect(()=>{void load();},[load,signal]);
+ useEffect(()=>{onArtifacts(projectId,assets.artifacts);},[projectId,assets.artifacts,onArtifacts]);
  useEffect(()=>{if(!dirty.current){setTab(focus);if(focus==="layout"&&assets.hasCad)setCadEditing(true);}},[focus,signal,assets.hasCad]);
  useEffect(()=>{if(!highlight)return;const key=`${highlight.id}:${highlight.version}`;if(seenHighlight.current===key)return;const a=assets.artifacts.find(a=>a.id===highlight.id);if(a&&!dirty.current){seenHighlight.current=key;if(a.kind==="estimate"){setTab("materials");setBillId(a.id);}else if(a.kind==="visual"){setTab("visuals");if(a.hasImage)setCompare(a);}else setTab("layout");}},[highlight,assets.artifacts]);
  const queued=assets.artifacts.filter(a=>a.kind==="visual"&&a.status==="queued"&&!a.hasImage);

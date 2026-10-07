@@ -15,8 +15,17 @@ CREATE TABLE IF NOT EXISTS roomwise.free_trials(user_id uuid PRIMARY KEY REFEREN
 INSERT INTO roomwise.free_trials(user_id,project_id) SELECT DISTINCT ON (p.user_id) p.user_id,p.id FROM roomwise.projects p JOIN roomwise.users u ON u.id=p.user_id WHERE p.preview_used=true AND p.paid=false AND u.email IS NOT NULL ORDER BY p.user_id,p.updated_at ON CONFLICT DO NOTHING;
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS roomwise.stripe_events(id text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now());
-CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 500),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 500));
+CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 1000),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 1000));
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='roomwise.ai_budget'::regclass AND pg_get_constraintdef(oid) LIKE '%500%') THEN
+    ALTER TABLE roomwise.ai_budget DROP CONSTRAINT ai_budget_limit_cents_check;
+    ALTER TABLE roomwise.ai_budget DROP CONSTRAINT ai_budget_reserved_cents_check;
+    ALTER TABLE roomwise.ai_budget ADD CONSTRAINT ai_budget_limit_cents_check CHECK(limit_cents BETWEEN 0 AND 1000);
+    ALTER TABLE roomwise.ai_budget ADD CONSTRAINT ai_budget_reserved_cents_check CHECK(reserved_cents BETWEEN 0 AND 1000);
+  END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS roomwise.artifacts(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),kind text NOT NULL,data jsonb NOT NULL,status text NOT NULL DEFAULT 'ready',model text,image bytea,created_at timestamptz NOT NULL DEFAULT now());
+UPDATE roomwise.artifacts SET status='queued' WHERE kind='visual' AND status='ready' AND image IS NULL;
 CREATE INDEX IF NOT EXISTS roomwise_artifacts_project ON roomwise.artifacts(project_id,created_at);
 CREATE TABLE IF NOT EXISTS roomwise.cad_models(project_id uuid PRIMARY KEY REFERENCES roomwise.projects(id),revision integer NOT NULL,model jsonb NOT NULL,author text NOT NULL,summary text NOT NULL,updated_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS roomwise.cad_revisions(project_id uuid NOT NULL REFERENCES roomwise.projects(id),revision integer NOT NULL,model jsonb NOT NULL,author text NOT NULL,summary text NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),PRIMARY KEY(project_id,revision));

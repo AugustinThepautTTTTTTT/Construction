@@ -1,5 +1,6 @@
 "use client";
 import "./chat.css";
+import "@/components/chat-artifact.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
 import type { ProjectTab,ProjectHighlight } from "@/components/project-panel";
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { briefSchema, type Project } from "@/lib/domain";
+import type { Artifact } from "@/lib/room-artifacts";
 import { ChatIcon } from "@/components/chat-icon";
 import { ChatMessage } from "@/components/chat-message";
 import { preparePhoto, PHOTO_LIMITS, type DraftPhoto } from "@/lib/photos";
@@ -38,6 +40,9 @@ export default function ChatPage() {
     [projects, setProjects] = useState<Project[]>([]),
     [active, setActive] = useState("");
   const [projectSignal,setProjectSignal]=useState(0),[panelFocus,setPanelFocus]=useState<ProjectTab>("visuals"),[projectPanelOpen,setProjectPanelOpen]=useState(false),[highlight,setHighlight]=useState<ProjectHighlight>(null),[cadDirty,setCadDirty]=useState(false);
+  const [projectAssets,setProjectAssets]=useState<{id:string;artifacts:Artifact[]}>({id:"",artifacts:[]});
+  const receiveArtifacts=useCallback((id:string,artifacts:Artifact[])=>setProjectAssets({id,artifacts}),[]);
+  const artifactsChanged=useCallback(()=>setProjectSignal(s=>s+1),[]);
   const [input, setInput] = useState(""),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
@@ -294,7 +299,7 @@ export default function ChatPage() {
       setProgress("Reviewing your room and request…");
       await readChatStream(response, (event) => {
         if(event.type === "cad"){setProjectSignal(s=>s+1);setPanelFocus("layout");setProjectPanelOpen(true);setSidebar(false);}
-        if(event.type === "artifact"){setProjectSignal(s=>s+1);setPanelFocus(event.kind === "estimate"?"materials":"visuals");setProjectPanelOpen(true);setSidebar(false);setHighlight(null);}
+        if(event.type === "artifact"){setProjectSignal(s=>s+1);setPanelFocus(event.kind === "estimate"?"materials":"visuals");setSidebar(false);setHighlight(null);}
         if (event.type === "status") setProgress(event.message);
         if (event.type === "artifact")
           setProjects((list) =>
@@ -610,7 +615,7 @@ export default function ChatPage() {
           <>
             <div className="thread" ref={thread}>
               {project?.messages.map((m, i) => (
-                <ChatMessage key={i} message={m} onOpenArtifact={openArtifact} />
+                <ChatMessage key={i} message={m} onOpenArtifact={openArtifact} artifacts={projectAssets.id===project?.id?projectAssets.artifacts:[]} unlocked={unlocked} onArtifactsChanged={artifactsChanged}/>
               ))}
               {busy && (
                 <div className="thinking" role="status" aria-live="polite">
@@ -648,7 +653,7 @@ export default function ChatPage() {
           work.
         </p>
       </section>
-      {project&&<ProjectPanel key={project.id} projectId={project.id} signal={projectSignal} focus={panelFocus} highlight={highlight} mobileOpen={projectPanelOpen} busy={busy} unlocked={unlocked} onDirtyChange={setCadDirty} onClose={()=>setProjectPanelOpen(false)} onAsk={text=>{setInput(text);setSidebar(false);setProjectPanelOpen(false);composer.current?.focus();}}/>}
+      {project&&<ProjectPanel key={project.id} projectId={project.id} signal={projectSignal} focus={panelFocus} highlight={highlight} mobileOpen={projectPanelOpen} busy={busy} unlocked={unlocked} onArtifacts={receiveArtifacts} onDirtyChange={setCadDirty} onClose={()=>setProjectPanelOpen(false)} onAsk={text=>{setInput(text);setSidebar(false);setProjectPanelOpen(false);composer.current?.focus();}}/>}
     </main>
   );
 }

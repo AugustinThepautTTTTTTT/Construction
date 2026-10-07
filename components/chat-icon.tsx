@@ -1,3 +1,4 @@
+import React from "react";
 // Original icons exported from the user's Figma chat reference. Preserve SVG
 // root dimensions; scale the image visually inside the requested control slot.
 const assets={"new-chat":{width:9,height:9},sidebar:{width:8,height:6},attach:{width:6,height:6},copy:{width:7,height:7}};

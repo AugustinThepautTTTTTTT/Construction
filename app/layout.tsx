@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: SITE.description,
   alternates: { canonical: "/" },
   robots: searchRobots(),
-  icons: { icon: "/brand/favicon.png", apple: "/brand/apple-touch-icon.png" },
+  icons: { icon: "/brand/favicon.png?v=2", apple: "/brand/apple-touch-icon.png" },
   keywords: [
     "AI room planner",
     "renovation plan",

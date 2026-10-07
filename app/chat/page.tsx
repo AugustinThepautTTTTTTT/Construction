@@ -1,4 +1,5 @@
 "use client";
+import "./chat.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
 import type { ProjectTab,ProjectHighlight } from "@/components/project-panel";
@@ -6,16 +7,15 @@ import { FolderOpen } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
-  Paperclip,
-  Check,
+  Camera,
   Download,
-  Menu,
   Plus,
   Settings,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { briefSchema, type Project } from "@/lib/domain";
+import { ChatIcon } from "@/components/chat-icon";
 import { ChatMessage } from "@/components/chat-message";
 import { preparePhoto, PHOTO_LIMITS, type DraftPhoto } from "@/lib/photos";
 import { readChatStream } from "@/lib/chat-stream";
@@ -65,6 +65,8 @@ export default function ChatPage() {
   const project = projects.find((p) => p.id === active),
     empty = !project?.messages.length;
   const unlocked = Boolean(cap.user?.pro_active || project?.paid);
+  useEffect(()=>{setSidebar(window.matchMedia("(min-width:1101px)").matches);},[]);
+  useEffect(()=>{const el=composer.current;if(!el)return;el.style.height="0px";el.style.height=`${Math.min(180,Math.max(28,el.scrollHeight))}px`;},[input,empty]);
   const openArtifact=useCallback((id:string)=>{if(cadDirty){setNotice("Save or discard your layout edits first.");return;}setHighlight(prev=>({id,version:(prev?.version||0)+1}));setProjectPanelOpen(true);setProjectSignal(s=>s+1);},[cadDirty]);
   async function refresh() {
     const [session, data] = await Promise.all([
@@ -412,11 +414,9 @@ export default function ChatPage() {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         maxLength={4000}
-        rows={empty ? 3 : 2}
+        rows={1}
         placeholder={
-          empty
-            ? "Describe your idea. We’ll work out the details together…"
-            : "Message Roomwise…"
+          "Ask anything about your room"
         }
         disabled={!ready || busy || preparing || confirming}
         onKeyDown={(e) => {
@@ -464,9 +464,10 @@ export default function ChatPage() {
           disabled={!ready || busy || preparing || photos.length >= 3}
           onClick={() => photoPicker.current?.click()}
         >
-          <Paperclip size={19} />
+          <ChatIcon name="attach" size={18}/>
         </Button>
-        <span>
+        <Button className="composerPhotoTool" type="button" disabled={!ready || busy || preparing || photos.length >= 3} onClick={()=>photoPicker.current?.click()} title="Up to 3 photos per message, 10 MB each"><Camera size={16}/>Photos</Button>
+        <span className={busy || preparing || confirming ? "composerStatus" : "visuallyHidden"} role="status">
           {preparing ? (
             "Preparing your photos…"
           ) : confirming ? (
@@ -474,15 +475,14 @@ export default function ChatPage() {
           ) : busy ? (
             progress || "Preparing your reply…"
           ) : unlocked ? (
-            <>
-              <Check size={13} /> Room Pass active
-            </>
+            "Room Pass active"
           ) : (
             "Your ideas, one conversation away."
           )}
         </span>
         <Button
           type="submit"
+          className="sendMessage"
           aria-label="Send message"
           disabled={
             !ready ||
@@ -498,7 +498,7 @@ export default function ChatPage() {
     </form>
   );
   return (
-    <main className={`workspace cleanWorkspace projectWorkspace ${project?"withProject":""}`}>
+    <main className={`workspace cleanWorkspace projectWorkspace chatKit ${sidebar?"historyVisible":""} ${project?"withProject":""} ${project&&projectPanelOpen?"projectVisible":""}`}>
       {sidebar && (
         <Button
           className="historyBackdrop"
@@ -515,10 +515,10 @@ export default function ChatPage() {
           onClick={newChat}
           disabled={busy || preparing}
         >
-          <Plus size={17} /> New chat
+          <ChatIcon name="new-chat" size={18}/> <span>New chat</span>
         </Button>
-        <Button className="railHistory" aria-label="Open saved chats" onClick={()=>setSidebar(!sidebar)}><Menu size={18}/></Button>
-        <p className="sideLabel">CHAT HISTORY</p>
+        <Button className="railHistory" aria-label="Open saved chats" onClick={()=>setSidebar(!sidebar)}><ChatIcon name="sidebar" size={19}/></Button>
+        <p className="sideLabel">Chats</p>
         <div className="projectList">
           {projects
             .filter((p) => p.messages.length || p.paid || p.id === active)
@@ -561,22 +561,16 @@ export default function ChatPage() {
         <header className="chatHead">
           <Button
             className="menu"
-            aria-label="Open chat history"
+            aria-label={sidebar?"Collapse chat history":"Open chat history"}
             aria-expanded={sidebar}
             aria-controls="roomwise-history"
             onClick={() => setSidebar(!sidebar)}
           >
-            <Menu size={18} />
+            <ChatIcon name="sidebar" size={20}/>
           </Button>
-          <span className="chatHeaderTitle">
-            {empty
-              ? "Roomwise"
-              : project?.messages
-                  .find((m) => m.role === "user")
-                  ?.content.slice(0, 55) || "Your chat"}
-          </span>
+          <span className="chatHeaderTitle">Roomwise</span>
           <div className="workspaceActions">
-            {project&&<Button className="openProject" aria-label="Open project panel" onClick={()=>{setProjectPanelOpen(true);setSidebar(false);}}><FolderOpen size={16}/><span>Your project</span></Button>}
+            {project&&<Button className="openProject" aria-label={projectPanelOpen?"Collapse project panel":"Open project panel"} aria-expanded={projectPanelOpen} aria-controls="roomwise-project" onClick={()=>{if(projectPanelOpen&&cadDirty){setNotice("Save or discard your layout edits before closing the project.");return;}setProjectPanelOpen(!projectPanelOpen);}}><FolderOpen size={16}/><span>Your project</span></Button>}
             {!empty && (
               <Button onClick={download} aria-label="Download plan">
                 <Download size={16} />
@@ -597,17 +591,10 @@ export default function ChatPage() {
         )}
         {empty ? (
           <div className="chatWelcome">
-            <span className="brandMark welcomeLogo">R</span>
-            <h1>
-              What will you
-              <br />
-              <em>create today?</em>
-            </h1>
-            <p>From a first idea to a room that feels like you.</p>
+            <h1>What will you create today?</h1>
             {inputBox}
             <small className="photoHelp">
-              Attach room photos · JPG, PNG or WebP · Up to 3 per message, 10 MB
-              each
+              Attach room photos · Up to 3 per message, 10 MB each
             </small>
             {project && !unlocked && (
               <Button

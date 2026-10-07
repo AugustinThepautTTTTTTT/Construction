@@ -1,0 +1,200 @@
+/* Chat UI kit reference: Figma pT2doOyK2MCsm3eooaR1ry, 676:4554 / 676:4874.
+   Native controls and dynamic room content retain their application behaviour. */
+.chatKit.projectWorkspace {
+  --ink:#000; --muted:#676767; --line:#e5e5e5; --cream:#f9f9f9;
+  --green:#000; --sage:#fff; --font-sans:Arial,Helvetica,sans-serif;
+  --font-serif:Arial,Helvetica,sans-serif;
+  grid-template-columns:56px minmax(0,1fr);
+  background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif;
+  height:100dvh; overflow:hidden;
+}
+.chatKit.projectWorkspace.withProject {grid-template-columns:56px minmax(0,1fr)}
+.chatKit.projectWorkspace.historyVisible {grid-template-columns:260px minmax(0,1fr)}
+.chatKit.projectWorkspace.projectVisible {grid-template-columns:56px minmax(0,1fr) 320px}
+.chatKit.projectWorkspace.historyVisible.projectVisible {grid-template-columns:260px minmax(0,1fr) 320px}
+.chatKit.projectWorkspace .side {width:56px;height:100dvh;background:#f9f9fa;border:0;padding:18px 8px;gap:16px;box-shadow:none;transition:none;z-index:10}
+.chatKit.projectWorkspace .side.open {position:relative;inset:auto;width:260px;padding:18px 12px;box-shadow:none;z-index:10}
+.chatKit.projectWorkspace .historyBackdrop {display:none}
+.chatKit.projectWorkspace .side>.brand {padding:0 8px;margin:0 0 12px;gap:10px;font-size:17px;font-weight:600;letter-spacing:-.4px}
+.chatKit .brandMark {width:26px;height:26px;border-radius:8px;color:#fff;background:#000;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:600}
+.chatKit.projectWorkspace .side:not(.open) .brand {padding:0;justify-content:center}
+.chatKit.projectWorkspace .newChatButton {display:flex;align-items:center;justify-content:flex-start;gap:11px;padding:10px 8px;margin:0;width:100%;height:40px;background:transparent;border:0;border-radius:8px;color:#000;font-size:14px;font-weight:400;cursor:pointer}
+.chatKit.projectWorkspace .side:not(.open) .newChatButton {width:40px;height:40px;font-size:14px;background:transparent;padding:0;justify-content:center}
+.chatKit.projectWorkspace .side:not(.open) .newChatButton span {display:none}
+.chatKit.projectWorkspace .newChatButton:hover,.chatKit.projectWorkspace .railHistory:hover {background:#ececec}
+.chatKit.projectWorkspace .railHistory {width:40px;height:36px;color:#424242}
+.chatKit.projectWorkspace .sideLabel {margin:20px 8px 0;color:#8f8f8f;font-size:12px;letter-spacing:0;font-weight:400;text-transform:none}
+.chatKit.projectWorkspace .projectList {margin:0 -4px;flex:1;min-height:0}
+.chatKit.projectWorkspace .projectList button {padding:11px 12px;margin:0 0 2px;border-radius:8px;color:#000;min-height:40px}
+.chatKit.projectWorkspace .projectList button:hover {background:#ececec}
+.chatKit.projectWorkspace .projectList button.active {background:#eaeaea;box-shadow:none}
+.chatKit.projectWorkspace .projectList span {font-size:14px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;width:100%}
+.chatKit.projectWorkspace .account {margin-top:auto;padding:14px 8px 0;border-top:1px solid #e8e8e8;color:#424242;font-size:13px;min-height:46px;flex-shrink:0}
+.chatKit.projectWorkspace .side:not(.open) .account {width:40px;padding:14px 0 0}
+.chatKit.projectWorkspace .chatArea {background:#fff;height:100dvh;min-height:0;min-width:0}
+.chatKit.projectWorkspace .chatHead {height:64px;min-height:64px;padding:0 24px;background:#fff;border:0;gap:14px}
+.chatKit.projectWorkspace .chatHead .menu {padding:6px;color:#676767;border-radius:8px;display:inline-flex}
+.chatKit.projectWorkspace .chatHead .menu:hover {background:#f4f4f4}
+.chatKit.projectWorkspace .chatHead>.chatHeaderTitle {color:#000;font-size:19px;font-weight:500;letter-spacing:-.4px;max-width:none}
+.chatKit.projectWorkspace .workspaceActions {margin-left:auto;gap:6px}
+.chatKit.projectWorkspace .workspaceActions button {width:34px;height:34px;padding:7px;background:transparent;border:0;border-radius:8px;color:#424242;display:inline-flex;align-items:center;justify-content:center}
+.chatKit.projectWorkspace .workspaceActions button:hover {background:#f4f4f4}
+.chatKit.projectWorkspace .workspaceActions .openProject {width:auto;height:34px;padding:7px 12px;gap:7px;border:1px solid #e5e5e5;border-radius:18px;background:#fff;color:#424242;font-size:12px}
+.chatKit.projectWorkspace .workspaceActions .openProject[aria-expanded=true] {background:#f4f4f4}
+.chatKit.projectWorkspace .workspaceActions .openProject span {display:inline}
+.chatKit.projectWorkspace .thread {width:min(768px,calc(100% - 64px));max-width:768px;flex:1;min-height:0;padding:35px 0 28px;scrollbar-width:thin;scrollbar-color:#ddd transparent}
+.chatKit.projectWorkspace .message {margin:0 0 38px;border:0;padding:0;min-width:0}
+.chatKit.projectWorkspace .message>span {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.chatKit.projectWorkspace .message>div {font-size:16px;line-height:1.65;color:#000}
+.chatKit.projectWorkspace .message.user {display:flex;justify-content:flex-end;margin-left:0;padding:0;border:0}
+.chatKit.projectWorkspace .message.user>.messageBody {max-width:min(85%,560px);padding:12px 20px;border:0;border-radius:24px;background:#f5f5f5;color:#000;position:relative}
+.chatKit.projectWorkspace .userText {margin:0;overflow-wrap:anywhere;line-height:1.6}
+.chatKit.projectWorkspace .message.assistant>.messageBody {width:100%;padding:0;background:transparent;border:0;border-radius:0}
+.chatKit.projectWorkspace .formattedReply {font-size:16px;line-height:1.65;color:#000}
+.chatKit.projectWorkspace .formattedReply p {margin:0 0 16px}
+.chatKit.projectWorkspace .formattedReply h1,.chatKit.projectWorkspace .formattedReply h2,.chatKit.projectWorkspace .formattedReply h3,.chatKit.projectWorkspace .formattedReply h4 {font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1.4;font-weight:600;letter-spacing:0;margin:24px 0 12px}
+.chatKit.projectWorkspace .formattedReply>:first-child {margin-top:0}
+.chatKit.projectWorkspace .formattedReply strong {font-weight:600}
+.chatKit.projectWorkspace .formattedReply a {color:#000;text-decoration:underline;text-underline-offset:3px}
+.chatKit.projectWorkspace .formattedReply blockquote {border-color:#ddd;color:#676767}
+.chatKit.projectWorkspace .formattedReply code,.chatKit.projectWorkspace .formattedReply pre {background:#f4f4f4;color:#000}
+.chatKit.projectWorkspace .formattedReply th,.chatKit.projectWorkspace .formattedReply td {border-color:#e5e5e5}
+.chatKit.projectWorkspace .message .projectSavedLink {font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#676767;padding:7px 0;margin-right:16px}
+.chatKit .messageActions {display:flex;align-items:center;gap:6px;margin-top:8px;min-height:28px;color:#676767}
+.chatKit .messageActions button {display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:5px;border:0;background:transparent;border-radius:6px;color:#676767;cursor:pointer}
+.chatKit .messageActions button:hover {background:#f4f4f4;color:#000}
+.chatKit .messageActions>span {font-size:11px}
+.chatKit .message.user .messageActions {position:absolute;right:4px;bottom:-32px;margin:0;opacity:0;pointer-events:none;background:#fff;border-radius:7px;padding:0 3px}
+.chatKit .message.user:hover .messageActions,.chatKit .message.user:focus-within .messageActions {opacity:1;pointer-events:auto}
+.chatKit.projectWorkspace .roomPhotos {margin:0 0 12px;gap:8px}
+.chatKit.projectWorkspace .roomPhotos img {width:160px;height:120px;border-radius:14px;border:0}
+.chatKit.projectWorkspace .chatComposer,.chatKit.projectWorkspace .chatComposer.heroComposer {width:min(768px,calc(100% - 64px));max-width:768px;background:#fff;border:1px solid #f0f0f0;border-radius:26px;box-shadow:0 2px 5px #00000012;padding:15px 16px 12px;margin:0 auto 12px;flex-shrink:0;transition:border-color .15s,box-shadow .15s}
+.chatKit.projectWorkspace .chatComposer:focus-within {border-color:#dedede;box-shadow:0 2px 5px #00000012}
+.chatKit.projectWorkspace .chatComposer textarea {font:16px/1.6 Arial,Helvetica,sans-serif;color:#000;background:transparent;min-height:28px;max-height:180px;padding:0 4px;resize:none;outline:0}
+.chatKit.projectWorkspace .chatComposer textarea::placeholder {color:#999}
+.chatKit.projectWorkspace .chatComposerTools {display:flex;align-items:center;gap:6px;margin-top:10px;min-height:36px}
+.chatKit.projectWorkspace .chatComposerTools button {width:36px;height:36px;border:0;border-radius:50%;color:#000;background:transparent;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;padding:7px}
+.chatKit.projectWorkspace .chatComposerTools button.attachPhoto {border:0;width:36px;height:36px;color:#676767;background:transparent;border-radius:50%}
+.chatKit.projectWorkspace .chatComposerTools button.composerPhotoTool {width:auto;border-radius:18px;padding:7px 10px;display:inline-flex;gap:7px;font-size:13px;color:#424242;background:transparent}
+.chatKit.projectWorkspace .chatComposerTools button:hover {background:#f4f4f4}
+.chatKit.projectWorkspace .chatComposerTools button.sendMessage {margin-left:auto;background:#000;color:#fff}
+.chatKit.projectWorkspace .chatComposerTools button.sendMessage:hover {background:#333}
+.chatKit.projectWorkspace .chatComposerTools button.sendMessage:disabled {opacity:1;background:#e5e5e5;color:#a5a5a5}
+.chatKit.projectWorkspace .chatComposerTools button:disabled {cursor:default}
+.chatKit.projectWorkspace .chatComposerTools .composerStatus {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#676767;font-size:11px;display:block}
+.chatKit.projectWorkspace .chatWelcome {flex:1;min-height:0;justify-content:center;padding:24px 0 80px;overflow:auto}
+.chatKit.projectWorkspace .chatWelcome h1 {font:400 clamp(27px,2.3vw,34px)/1.25 Arial,Helvetica,sans-serif;letter-spacing:-.6px;color:#000;margin:0 24px 30px;text-align:center}
+.chatKit.projectWorkspace .chatWelcome .heroComposer {margin:0 auto}
+.chatKit.projectWorkspace .photoHelp {font:11px/1.6 Arial,Helvetica,sans-serif;color:#8f8f8f;margin:16px 24px 0;text-align:center}
+.chatKit.projectWorkspace .disclaimer {font:11px/1.5 Arial,Helvetica,sans-serif;color:#676767;margin:0 20px 12px}
+.chatKit.projectWorkspace .thinking {font:12px/1.5 Arial,Helvetica,sans-serif;color:#676767;margin-top:12px}
+.chatKit .thinking i {background:#676767}
+.chatKit.projectWorkspace .cleanNotice,.chatKit.projectWorkspace .chatUpgrade {color:#424242;background:#f4f4f4;border-color:#e5e5e5;border-radius:10px;font-size:12px}
+.chatKit.projectWorkspace .chatUpgrade button {background:#000;border-color:#000;color:#fff;border-radius:18px}
+.chatKit.projectWorkspace .checkPaymentLink {color:#676767;font-size:12px;border-color:#e5e5e5;background:transparent;margin-top:14px}
+.chatKit.projectWorkspace button:focus-visible,.chatKit.projectWorkspace a:focus-visible,.chatKit.projectWorkspace select:focus-visible,.chatKit.projectWorkspace input:focus-visible {outline:2px solid #000;outline-offset:3px}
+
+/* The project remains a small optional drawer; its content is preserved. */
+.chatKit.projectWorkspace>.projectPanel {display:none;position:relative;inset:auto;width:320px;height:100dvh;min-width:0;overflow:auto;border-left:1px solid #e5e5e5;background:#fafafa;box-shadow:none;z-index:15}
+.chatKit.projectWorkspace>.projectPanel.mobileOpen {display:flex}
+.chatKit .projectPanelHead {height:64px;min-height:64px;padding:0 16px;border-color:#e5e5e5;background:#fafafa;color:#000}
+.chatKit .projectPanelHead>div {color:#000;font-size:14px}
+.chatKit .projectPanel .closeProjectPanel {display:inline-flex}
+.chatKit .projectPanel button {font-family:Arial,Helvetica,sans-serif;color:#424242;cursor:pointer}
+.chatKit .projectPanel button:hover {background:#ececec}
+.chatKit .projectPanel button:focus-visible,.chatKit .projectPanel a:focus-visible,.chatKit .projectPanel select:focus-visible {outline-color:#000}
+.chatKit .projectFolders {top:64px;padding:12px 10px;gap:2px;background:#fafafa;border-color:#e5e5e5}
+.chatKit .projectFolders button {padding:8px 10px;font-size:11px;border-radius:18px;gap:5px;color:#676767}
+.chatKit .projectFolders button[aria-pressed=true] {background:#000;color:#fff}
+.chatKit .projectSectionIntro {padding:24px 18px 20px}
+.chatKit .projectSectionIntro small {font-size:9px;color:#8f8f8f;letter-spacing:.08em}
+.chatKit .projectSectionIntro h2 {font:500 22px/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.5px;color:#000;margin:10px 0}
+.chatKit .projectSectionIntro p {font-size:12px;color:#676767;line-height:1.6}
+.chatKit .projectConceptGrid,.chatKit .projectMaterials {padding-left:14px;padding-right:14px;gap:14px}
+.chatKit .projectConcept {border-color:#e5e5e5;background:#fff;border-radius:12px}
+.chatKit .conceptOriginal,.chatKit .conceptAfter {background:#f0f0f0}
+.chatKit .conceptOriginal>span,.chatKit .conceptAfter>span {background:#ffffffed;color:#424242;top:8px;left:7px;padding:4px 7px;font-size:8px}
+.chatKit .conceptPending {background:linear-gradient(145deg,#f0f0f0,#fafafa);color:#8f8f8f;padding:12px}
+.chatKit .conceptPending span {font-size:10px}
+.chatKit .conceptInfo {padding:13px 12px;gap:10px}
+.chatKit .conceptInfo h3 {font-size:12px;color:#000;line-height:1.4}
+.chatKit .conceptInfo small {font-size:10px;color:#8f8f8f}
+.chatKit .conceptInfo>button,.chatKit .conceptInfo>a {border-color:#e5e5e5!important;font-size:10px;padding:7px 9px}
+.chatKit .projectOriginals {padding:20px 14px 12px}
+.chatKit .projectOriginals h3,.chatKit .projectOriginals h3 span {color:#676767}
+.chatKit .projectPanel .projectNewConcept {margin:10px 14px 24px;border-color:#e5e5e5;font-size:11px}
+.chatKit .projectFolderEmpty {margin:0 14px 20px;padding:24px 18px;color:#676767;border-color:#ddd;background:#fff;border-radius:12px}
+.chatKit .projectFolderEmpty h3 {font:500 18px/1.3 Arial,Helvetica,sans-serif;color:#000;letter-spacing:-.3px}
+.chatKit .projectFolderEmpty p {color:#676767;font-size:12px;line-height:1.6}
+.chatKit .projectFolderEmpty button {border-color:#e5e5e5;border-radius:18px}
+.chatKit .projectBlank,.chatKit .projectPanelNotice {color:#676767;background:#f4f4f4}
+.chatKit .projectBillPicker {margin:0 14px 16px;color:#676767}
+.chatKit .projectBillPicker select {border-color:#e5e5e5;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}
+.chatKit .projectBudget {background:#f4f4f4;border-color:#e5e5e5;padding:18px;border-radius:12px}
+.chatKit .projectBudget>strong {font:500 23px/1.3 Arial,Helvetica,sans-serif;color:#000;letter-spacing:-.5px}
+.chatKit .projectBudget>small,.chatKit .projectBudget>p,.chatKit .projectBudget>div span {color:#676767}
+.chatKit .projectBudget b {color:#424242}
+.chatKit .projectBudget>div {border-color:#ddd}
+.chatKit .projectBillActions a {background:#000;color:#fff}
+.chatKit .projectBillActions button {border-color:#e5e5e5!important;font-size:10px}
+.chatKit .projectQuantityNote,.chatKit .productNumber,.chatKit .productTop p,.chatKit .productMatch,.chatKit .productFigures small,.chatKit .productChecked,.chatKit .productQuantity,.chatKit .productUnsourced p,.chatKit .projectFootnote,.chatKit .projectExclusions {color:#676767}
+.chatKit .projectProduct {padding:16px 14px;background:#fff;border-color:#e5e5e5;border-radius:12px}
+.chatKit .productTop h3,.chatKit .productFigures b {color:#000}
+.chatKit .productFigures b {font-size:10px}
+.chatKit .productPriceStatus,.chatKit .productPriceStatus.sourced {background:#f4f4f4;color:#676767;border-color:#e5e5e5}
+.chatKit .productShop {background:#f4f4f4;border-color:#e5e5e5;color:#000;font-size:11px}
+.chatKit .productShop:hover {background:#ececec}
+.chatKit .productQuantity {border-color:#e5e5e5}
+.chatKit .productUnsourced {background:#f4f4f4}
+.chatKit .projectComparison {background:#fff;color:#000;border-color:#e5e5e5}
+.chatKit .projectComparison::backdrop {background:#0008}
+.chatKit .comparisonShell h2 {font:500 26px/1.2 Arial,Helvetica,sans-serif;color:#000}
+.chatKit .comparisonShell>header small,.chatKit .comparisonCaption,.chatKit .comparisonNote,.chatKit .compareRange {color:#676767}
+.chatKit .projectComparison button {font-family:Arial,Helvetica,sans-serif;color:#424242}
+.chatKit .projectComparison button[aria-pressed=true] {background:#f4f4f4;color:#000}
+.chatKit .comparisonTools a {border-color:#e5e5e5;color:#424242}
+.chatKit .comparisonPair figure,.chatKit .comparisonStage {background:#f4f4f4}
+.chatKit .comparisonPair figcaption {background:#f9f9f9;color:#676767}
+.chatKit .compareLabel {background:#fffffff0;color:#424242}
+.chatKit .compareRange input {accent-color:#000}
+.chatKit .projectPanel>.cadStudio {width:100%;min-height:650px;background:#fafafa}
+.chatKit.projectWorkspace .projectPanel>.cadStudio.expanded {inset:0 0 0 56px;width:auto;height:100dvh;min-height:0;z-index:30}
+.chatKit.historyVisible .projectPanel>.cadStudio.expanded {left:260px}
+.chatKit .cadStudioHead,.chatKit .cadControls,.chatKit .cadStudioFoot {background:#fafafa;border-color:#e5e5e5}
+.chatKit .cadStudioHead>div,.chatKit .cadModelMeta,.chatKit .cadDesignIntro p,.chatKit .cadCreativePanel>p,.chatKit .cadPrecision>summary,.chatKit .cadPrecision>summary span {color:#676767}
+.chatKit .cadDesignIntro h2,.chatKit .cadCreativePanel h2 {color:#000;font:500 22px/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.5px}
+.chatKit .cadStudioNav button[aria-pressed=true],.chatKit .cadStudioFoot button:first-child {background:#000;color:#fff}
+.chatKit .cadStudioNav button,.chatKit .cadViewTools>span {color:#676767}
+
+@media(max-width:1100px) {
+  .chatKit.projectWorkspace,.chatKit.projectWorkspace.withProject,.chatKit.projectWorkspace.historyVisible,.chatKit.projectWorkspace.historyVisible.projectVisible,.chatKit.projectWorkspace.projectVisible {grid-template-columns:56px minmax(0,1fr)}
+  .chatKit.projectWorkspace .side.open {position:fixed;inset:0 auto 0 0;width:260px;z-index:60}
+  .chatKit.projectWorkspace .historyBackdrop {display:block;background:#0004;backdrop-filter:none}
+  .chatKit.projectWorkspace>.projectPanel.mobileOpen {position:fixed;inset:0 0 0 auto;width:320px;max-width:100%;z-index:40;box-shadow:-12px 0 50px #00000012}
+  .chatKit.projectWorkspace .projectPanel>.cadStudio.expanded {inset:0}
+}
+@media(max-width:700px) {
+  .chatKit.projectWorkspace,.chatKit.projectWorkspace.withProject,.chatKit.projectWorkspace.historyVisible,.chatKit.projectWorkspace.historyVisible.projectVisible,.chatKit.projectWorkspace.projectVisible {grid-template-columns:minmax(0,1fr)}
+  .chatKit.projectWorkspace .side:not(.open) {display:none}
+  .chatKit.projectWorkspace .chatHead {padding:0 12px;height:56px;min-height:56px;gap:8px}
+  .chatKit.projectWorkspace .chatHead>.chatHeaderTitle {font-size:18px}
+  .chatKit.projectWorkspace .workspaceActions {gap:2px}
+  .chatKit.projectWorkspace .workspaceActions .openProject {padding:7px 9px}
+  .chatKit.projectWorkspace .workspaceActions .openProject span {display:none}
+  .chatKit.projectWorkspace .thread,.chatKit.projectWorkspace .chatComposer,.chatKit.projectWorkspace .chatComposer.heroComposer {width:calc(100% - 32px)}
+  .chatKit.projectWorkspace .thread {padding-top:24px}
+  .chatKit.projectWorkspace .message {margin-bottom:34px}
+  .chatKit.projectWorkspace .message.user>.messageBody {max-width:90%;padding:10px 16px;border-radius:22px}
+  .chatKit.projectWorkspace .message>div,.chatKit.projectWorkspace .formattedReply {font-size:15px}
+  .chatKit.projectWorkspace .chatWelcome {padding:20px 0 70px}
+  .chatKit.projectWorkspace .chatWelcome h1 {font-size:27px;margin:0 20px 26px}
+  .chatKit.projectWorkspace .chatComposer {padding:13px 12px 10px;border-radius:24px}
+  .chatKit.projectWorkspace .chatComposerTools .composerStatus {font-size:10px}
+  .chatKit.projectWorkspace .disclaimer {font-size:10px;margin:0 16px 10px}
+  .chatKit.projectWorkspace .roomPhotos img {width:130px;height:110px}
+  .chatKit.projectWorkspace>.projectPanel.mobileOpen {width:min(360px,100%)}
+  .chatKit .projectPanelHead {height:56px;min-height:56px}
+  .chatKit .projectFolders {top:56px}
+  .chatKit .message.user .messageActions {opacity:1;pointer-events:auto}
+}
+@media(max-height:620px) {.chatKit.projectWorkspace .chatWelcome {padding:24px 0 30px;justify-content:flex-start}.chatKit.projectWorkspace .chatWelcome h1 {margin-top:24px}}

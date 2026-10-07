@@ -1,2 +1,6 @@
 import type { MetadataRoute } from "next";
-export default function robots(): MetadataRoute.Robots { return { rules: { userAgent: "*", allow: "/", disallow: ["/chat", "/api/"] } }; }
+import { SITE, searchRobots } from "@/lib/seo";
+export default function robots(): MetadataRoute.Robots {
+  if (!searchRobots().index) return { rules: { userAgent: "*", disallow: "/" } };
+  return { rules: { userAgent: "*", allow: "/", disallow: ["/account", "/chat", "/purchase", "/api/"] }, sitemap: `${SITE.url}/sitemap.xml`, host: SITE.url };
+}

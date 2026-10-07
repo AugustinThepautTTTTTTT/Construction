@@ -13,7 +13,7 @@ export async function POST(r:NextRequest){
  if(['invoice.paid','invoice.payment_succeeded'].includes(event.type)){
   await settleInvoice(db,stripe,object.id);
   const owner=await db.query("SELECT user_id FROM roomwise.credit_ledger WHERE operation_key=$1",['invoice:'+object.id]);
-  if(owner.rows[0]){await queueMail(db,'invoice:'+object.id,owner.rows[0].user_id,'Your Roomwise credits are ready',`Your monthly payment is confirmed. Your credits have been added to your account. Open your workspace: ${process.env.NEXT_PUBLIC_APP_URL}/chat\nManage your subscription in Settings → Plan & billing.`);if(mailConfigured()&&!await flushMail(db,'invoice:'+object.id))throw new Error('Email retry required');}
+  if(owner.rows[0]){await queueMail(db,'invoice:'+object.id,owner.rows[0].user_id,'Your Archicova credits are ready',`Your monthly payment is confirmed. Your credits have been added to your account. Open your workspace: ${process.env.NEXT_PUBLIC_APP_URL}/chat\nManage your subscription in Settings → Plan & billing.`);if(mailConfigured()&&!await flushMail(db,'invoice:'+object.id))throw new Error('Email retry required');}
  }else if(event.type.startsWith('customer.subscription.')){await syncSubscription(db,stripe,object.id);}
  else if(event.type==='checkout.session.completed'&&object.invoice){await settleInvoice(db,stripe,typeof object.invoice==='string'?object.invoice:object.invoice.id);}
  return NextResponse.json({received:true});

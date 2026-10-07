@@ -165,7 +165,7 @@ export async function POST(
           [artifactId, owner,JSON.stringify({generationError:e instanceof CreditError?e.message:"The concept could not be generated. Your design brief is saved."})],
         )
         .catch(() => {});
-    console.error("Roomwise image generation failed", {
+    console.error("Archicova image generation failed", {
       status: e instanceof OpenAI.APIError ? e.status : undefined,
       code: e instanceof OpenAI.APIError ? e.code : "image_failure",
     });

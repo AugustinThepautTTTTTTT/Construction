@@ -2,7 +2,7 @@ import { validateCad } from "./model";
 import { wallSolids } from "./geometry";
 export function cadPythonSource(raw:unknown){
  const model=validateCad(raw),payload=Buffer.from(JSON.stringify({model,walls:wallSolids(model)})).toString("base64");
- return `# Roomwise editable CAD source. Generated from your saved room revision.
+ return `# Archicova editable CAD source. Generated from your saved room revision.
 # Install/run: uvx --no-config --managed-python --python 3.13 --from cadgen==0.7.15 python room.py
 # Outputs room.step beside this source. Units: millimetres, XY / +Z.
 import base64, json, math

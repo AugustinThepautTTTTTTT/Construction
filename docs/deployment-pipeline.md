@@ -29,7 +29,7 @@ The source and deployment guard files belong in both branches. After these setti
 
 ## Current production readiness
 
-The owner account augustin.thepaut@gmail.com was migrated into the production database with Pro access and 646 credits. Production is available for owner testing. Live Stripe prices and a webhook exist, but STRIPE_SECRET_KEY is missing in Production, so paid checkout is unavailable. Email delivery and Google sign-in are not configured. Health configuration flags do not substitute for testing an actual AI generation or purchase.
+The owner account augustin.thepaut@gmail.com was migrated into the production database with Pro access and 646 credits. Production is available for owner testing. The live Stripe key, prices and webhook are configured, and the deployment check validates the live account and both prices. A real customer purchase still needs end-to-end verification. Email delivery and Google sign-in are not configured. Health configuration flags do not substitute for testing an actual AI generation or purchase.
 
 Database credentials stay exclusively in Vercel environment variables. Database schema changes must be backward compatible across the dev test and production promotion; reverting code does not revert database migrations.
 

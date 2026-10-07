@@ -8,6 +8,8 @@ import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";
 import { FolderOpen, Zap } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Camera, Download, Plus, Settings, X } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
+import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { briefSchema, type Project } from "@/lib/domain";
 import type { Artifact } from "@/lib/room-artifacts";
@@ -187,6 +189,10 @@ export default function ChatPage() {
                 : {}),
             });
             if (result.confirmed) {
+              try {
+                const key = `archicova:payment-tracked:${q.get("session_id")}`;
+                if (!sessionStorage.getItem(key)) { track("subscription_confirmed"); sessionStorage.setItem(key, "1"); }
+              } catch {}
               list = await refresh();
               window.history.replaceState(
                 null,
@@ -359,7 +365,7 @@ export default function ChatPage() {
     following.current = true;
     if (cadDirty) {
       setNotice(
-        "Save your room changes before sending, so Roomwise sees your latest geometry.",
+        "Save your room changes before sending, so Archicova sees your latest geometry.",
       );
       return;
     }
@@ -535,7 +541,7 @@ export default function ChatPage() {
     const blob = new Blob(
       [
         project.messages
-          .map((m) => `${m.role === "user" ? "You" : "Roomwise"}\n${m.content}`)
+          .map((m) => `${m.role === "user" ? "You" : "Archicova"}\n${m.content}`)
           .join("\n\n"),
       ],
       { type: "text/plain;charset=utf-8" },
@@ -543,7 +549,7 @@ export default function ChatPage() {
     const url = URL.createObjectURL(blob),
       a = document.createElement("a");
     a.href = url;
-    a.download = "roomwise-plan.txt";
+    a.download = "archicova-plan.txt";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -553,7 +559,7 @@ export default function ChatPage() {
       onSubmit={send}
     >
       <label className="visuallyHidden" htmlFor="chat-prompt">
-        Message Roomwise
+        Message Archicova
       </label>
       <textarea
         ref={composer}
@@ -673,9 +679,9 @@ export default function ChatPage() {
         />
       )}
       <aside id="roomwise-history" className={sidebar ? "side open" : "side"}>
-        <Link href="/" className="brand" aria-label="Roomwise home">
-          <span className="brandMark">R</span>
-          <span className="brandName">roomwise</span>
+        <Link href="/" className="brand" aria-label="Archicova home">
+          <BrandMark/>
+          <span className="brandName">Archicova</span>
         </Link>
         <Button
           className="newChatButton"
@@ -730,7 +736,7 @@ export default function ChatPage() {
           <span className="chatHeaderTitle">
             {selectedFolder
               ? folders.find((f) => f.id === selectedFolder)?.title
-              : project?.title || "Roomwise"}
+              : project?.title || "Archicova"}
           </span>
           <div className="workspaceActions">
             {project && !selectedFolder && (
@@ -859,7 +865,7 @@ export default function ChatPage() {
           </div>
         )}
         <p className="disclaimer">
-          Roomwise can make mistakes. Check important details before starting
+          Archicova can make mistakes. Check important details before starting
           work.
         </p>
       </section>

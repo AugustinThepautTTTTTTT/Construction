@@ -15,6 +15,7 @@ export const dynamic = "force-dynamic";
 function capabilities() {
   return {
     accounts: databaseConfigured(),
+    stripeMode: stripeMode(),
     storage: databaseConfigured() ? "cloud" : "local",
     checkout: Boolean(
       databaseConfigured() &&

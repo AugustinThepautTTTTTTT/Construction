@@ -2,6 +2,8 @@
 import "./account.css";
 import { AccountSettings, type Account } from "@/components/account-settings";
 import { FormEvent, useEffect, useState } from "react";
+import { BrandMark } from "@/components/brand-mark";
+import { track } from "@vercel/analytics";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -86,6 +88,7 @@ export default function AccountPage() {
         setStatus("Password reset. Sign in with your new password.");
       } else {
         await api("/api/auth/credentials", { mode, email, password, name });
+        track(mode === "signup" ? "account_created" : "login_completed", { method: "password" });
         setPassword("");
         window.location.assign(next);
       }
@@ -111,7 +114,7 @@ export default function AccountPage() {
       </Link>
       <section className="accountCard">
         <Link href="/" className="brand">
-          <span className="brandMark">R</span>roomwise
+          <BrandMark/>Archicova
         </Link>
         <div className="mailIcon">
           <User />

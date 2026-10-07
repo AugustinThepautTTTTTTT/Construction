@@ -45,7 +45,7 @@ function MessageView({
   }
   return (
     <article className={`message ${message.role}`}>
-      <span>{message.role === "user" ? "You" : "Roomwise"}</span>
+      <span>{message.role === "user" ? "You" : "Archicova"}</span>
       <div className="messageBody">
         {!!message.photoIds?.length && (
           <div className="roomPhotos">

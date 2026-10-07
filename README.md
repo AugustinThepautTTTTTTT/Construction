@@ -107,3 +107,5 @@ Images appear automatically beneath the assistant reply; no second Generate conf
 Bills render as document-style cards in chat, using the same quantities, sourced prices, estimated allowances and safe shop URLs as the Materials folder and Excel export. General, Security and Plan & billing settings use the neutral Figma settings layout with real profile, password, session and Stripe portal actions.
 
 The shared PoC cap is now $10 (1,000 cents). The schema upgrades the existing $5 ledger constraints without resetting past reservations; each atomic reservation applies the configured cap, bounded to $10. Text remains Luna, existing expiry remains enforced, and image/provider reservations and per-room limits still apply.
+
+The server-only `ROOMWISE_TESTER_EMAILS` allowlist grants designated testing accounts 20 image attempts per day and 10 completed/running concepts per room. Other accounts retain 4 attempts/day and 2 concepts/room. Paid entitlement, expiry and the shared $10 budget apply to both; this allowance does not reset past spend or generate images itself.

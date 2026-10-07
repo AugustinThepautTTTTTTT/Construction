@@ -6,6 +6,7 @@ import { z } from "zod";
 import { identity, sameOrigin, error } from "@/lib/server";
 import { database, rateLimit } from "@/lib/database";
 import { aiPolicy, reserveAiCall } from "@/lib/ai-budget";
+import { imageLimits } from "@/lib/image-limits";
 import { visualSchema } from "@/lib/room-artifacts";
 import {
   roomVisualPrompt,
@@ -66,7 +67,8 @@ export async function POST(
     const policy = aiPolicy();
     if (!policy)
       return rejectQueued("Image generation is unavailable or this PoC has expired.");
-    if (!(await rateLimit(`visual:${user.id}`, 4, 86400)))
+    const limits = imageLimits(user.email);
+    if (!(await rateLimit(`visual:${user.id}`, limits.daily, 86400)))
       return rejectQueued("You have reached today's concept limit.", 429);
     const visual = visualSchema.parse({
         title: a.data.title,
@@ -94,10 +96,10 @@ export async function POST(
         "SELECT count(*)::int AS n FROM roomwise.artifacts WHERE project_id=$1 AND kind='visual' AND (image IS NOT NULL OR status='running')",
         [a.project_id],
       );
-      if (count.rows[0].n >= 2) {
+      if (count.rows[0].n >= limits.perRoom) {
         await c.query("ROLLBACK");
         return rejectQueued(
-          "This room has reached its limit of two image concepts.",
+          `This room has reached its limit of ${limits.perRoom} image concepts.`,
           429,
         );
       }

@@ -1,3 +1,4 @@
+import {creditAccount, debitCredits, refundCredits, CreditError} from "@/lib/credits";
 import { ProductSearchError } from "@/lib/material-research";
 import { bindVisualPhoto, VisualSourceError } from "@/lib/visual-recovery";
 import { isLayoutRequest, isProductSearchRequest } from "@/lib/project-intent";
@@ -5,7 +6,7 @@ import { getCad, CadConflict } from "@/lib/cad/store";
 import OpenAI from "openai";
 import { randomUUID } from "node:crypto";
 import { splitParagraphs, type ChatEvent } from "@/lib/chat-stream";
-import { aiPolicy, boundedInput, reserveAiCall } from "@/lib/ai-budget";
+import { aiPolicy, boundedInput } from "@/lib/ai-budget";
 import { materialBills } from "@/lib/material-bills";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -38,20 +39,8 @@ export async function POST(r: NextRequest) {
     const repo = new ProjectRepository(db);
     const p = await repo.get(user.id, parsed.data.projectId);
     if (!p) return error("Project not found.", 404);
-    if (!user.pro_active && !p.paid && (p.previewUsed || user.free_trial_used))
-      return error(
-        "Your account’s free test has been used. Choose a Room Pass or Pro to continue.",
-        402,
-      );
-    if (
-      !(await rateLimit(`chat:${user.id}`, user.pro_active ? 120 : 40, 86400))
-    )
-      return error(
-        "You have reached today’s planning limit. Please return tomorrow.",
-        429,
-      );
-    if (p.messages.length > 200)
-      return error("Start a new room to continue.", 400);
+    const account = await creditAccount(db, user.id);
+    if (account.credits < 1) return error(new CreditError().message, 402);
     const photoIds = parsed.data.photoIds;
     // Continue using the most recently shared room photos on follow-up turns.
     const contextPhotos = photoIds.length
@@ -68,8 +57,6 @@ export async function POST(r: NextRequest) {
       : [];
     if (photos.length !== contextPhotos.length)
       return error("One of these photos does not belong to this room.", 400);
-    if (p.messages.length >= 200)
-      return error("Start a new room to continue.", 400);
     const generationId = randomUUID();
     const lock = await db.connect();
     try {
@@ -106,32 +93,11 @@ export async function POST(r: NextRequest) {
     } finally {
       lock.release();
     }
-    let claimed = false;
-    const releaseTrial = async () => {
-      if (claimed)
-        await db.query(
-          `WITH released AS (DELETE FROM roomwise.free_trials WHERE project_id=$1 AND user_id=$2 RETURNING project_id) UPDATE roomwise.projects SET preview_used=false WHERE id IN (SELECT project_id FROM released)`,
-          [p.id, user.id],
-        );
-    };
+    const operation = `message:${generationId}`;
     try {
-      if (!user.pro_active && !p.paid) {
-        claimed = await repo.claimPreview(user.id, p.id);
-        if (!claimed) {
-          await db.query(
-            "UPDATE roomwise.generations SET status='failed' WHERE id=$1",
-            [generationId],
-          );
-          return error(
-            "Your account’s free test is already being prepared or has been used.",
-            402,
-          );
-        }
-      }
       const policy = aiPolicy();
-      if (!policy && contextPhotos.length) throw new Error("AI_UNAVAILABLE");
-      if (policy && !(await reserveAiCall(db, policy.limitCents)))
-        throw new Error("BUDGET_EXHAUSTED");
+      if (!policy) throw new Error("AI_UNAVAILABLE");
+      await debitCredits(db, user.id, operation, 'message', p.id);
       const previous = await db.query(
         "SELECT id,kind,data FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind!='plan' ORDER BY created_at DESC LIMIT 30",
         [p.id, user.id],
@@ -147,7 +113,7 @@ export async function POST(r: NextRequest) {
       const currentCad = await getCad(db, user.id, p.id);
       const layout = isLayoutRequest(parsed.data.message, !!currentCad);
       const instructions =
-        ROOM_PLANNER_PROMPT +
+        (account.plan === "free" ? "FREE PLAN: Help draft ideas, analyse room photos and prepare concept images. Do not produce a bill of materials, quantities/cost tables, product research, construction checklist or CAD. Explain these capabilities are included in Basic and Pro when requested.\n" : "") + ROOM_PLANNER_PROMPT +
         "\n" +
         skillInstructions() +
         `\nPROJECT MODE: ${layout ? "Layout / geometry: use the saved CAD when a spatial change is requested." : "Refurbishment: do not create or update CAD. Lead with photo concepts and materials. For quantities use existing CAD or explicit provisional manual quantities; never create a 2D plan. Construction plans are ordered work steps linked to the BOM, not geometry."}\n` +
@@ -239,8 +205,6 @@ export async function POST(r: NextRequest) {
               let currentInput = input;
               let toolCount = 0;
               for (let round = 0; round < 3; round++) {
-                if (round && !(await reserveAiCall(db, policy.limitCents)))
-                  throw new Error("BUDGET_EXHAUSTED");
                 const response = await client.responses.create({
                   model: policy.model,
                   instructions,
@@ -256,6 +220,7 @@ export async function POST(r: NextRequest) {
                           layout,
                           products,
                           hasBill,
+                          paid: account.plan !== "free",
                         })
                       : [],
                   parallel_tool_calls: false,
@@ -390,7 +355,7 @@ export async function POST(r: NextRequest) {
                     }
                   } catch (e) {
                     result =
-                      e instanceof ProductSearchError
+                      e instanceof CreditError || e instanceof ProductSearchError
                         ? { error: e.message }
                         : e instanceof VisualSourceError
                           ? {
@@ -462,7 +427,7 @@ export async function POST(r: NextRequest) {
                 [generationId],
               )
               .catch(() => {});
-            await releaseTrial().catch(() => {});
+            if (!saved.trim() && !artifactIds.length) await refundCredits(db, user.id, operation).catch(() => {});
             const quota =
               e instanceof OpenAI.APIError &&
               ["insufficient_quota", "credit_balance_exhausted"].includes(
@@ -497,11 +462,11 @@ export async function POST(r: NextRequest) {
         "UPDATE roomwise.generations SET status='failed' WHERE id=$1",
         [generationId],
       );
-      await releaseTrial();
+      await refundCredits(db, user.id, operation).catch(() => {});
       return error(
-        e instanceof Error && e.message === "BUDGET_EXHAUSTED"
-          ? "The PoC AI budget has been reached."
-          : "AI planning is temporarily unavailable. Your saved plan is safe.",
+        e instanceof CreditError
+          ? e.message
+          : "AI planning is temporarily unavailable. Your saved plan is safe.", e instanceof CreditError ? 402 : 503,
       );
     }
   } catch {

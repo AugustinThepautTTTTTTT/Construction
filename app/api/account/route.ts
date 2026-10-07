@@ -16,6 +16,7 @@ export async function GET(r: NextRequest) {
   );
   return NextResponse.json({
     user,
+    usage: (await db.query("SELECT delta,kind,description,created_at FROM roomwise.credit_ledger WHERE user_id=$1 ORDER BY created_at DESC LIMIT 25",[user.id])).rows,
     stats: stats.rows[0],
     billingAvailable: Boolean(billing.rows[0]?.stripe_customer_id),
     subscription: Boolean(billing.rows[0]?.subscription_id),

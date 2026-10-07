@@ -15,7 +15,7 @@ export async function checkStripe(stripe, prices) {
     prices: prices.map(({ plan, amount }, i) => {
       const r = entries[i + 1];
       return { plan, status: r.status === "fulfilled"
-        ? (!r.value.livemode && r.value.active && r.value.currency === "usd" && r.value.unit_amount === amount && r.value.type === (plan === "pro" ? "recurring" : "one_time") ? "ok" : "invalid_test_price")
+        ? (!r.value.livemode && r.value.active && r.value.currency === "usd" && r.value.unit_amount === amount && r.value.type === (plan === "single" ? "one_time" : "recurring") && (plan === "single" || r.value.recurring?.interval === "month") ? "ok" : "invalid_test_price")
         : code(r) };
     }),
   };
@@ -26,7 +26,7 @@ async function main() {
   else {
     const stripe = new Stripe(key, { timeout: 10000, maxNetworkRetries: 0 });
     const prices = [
-      { plan: "single", id: process.env.STRIPE_SINGLE_PRICE_ID, amount: 500 },
+      { plan: "basic", id: process.env.STRIPE_BASIC_PRICE_ID, amount: 500 },
       { plan: "pro", id: process.env.STRIPE_PRO_PRICE_ID, amount: 5000 },
     ];
     if (prices.some(p => !p.id)) console.log("Roomwise Stripe check: price IDs missing");

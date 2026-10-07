@@ -1,3 +1,5 @@
+import {requestConfirmation} from "@/lib/email-confirmation";
+import {creditAccount} from "@/lib/credits";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { database, rateLimit } from "@/lib/database";
@@ -63,9 +65,11 @@ export async function POST(r: NextRequest) {
         digest(r.cookies.get("roomwise_session")?.value || ""),
       ]);
     await c.query("COMMIT");
+    await creditAccount(db, user!.id);
+    const verificationSent = mode === "signup" ? await requestConfirmation(db,user!.id).catch(() => false) : undefined;
     const session = await newSession(user!.id);
     return sessionCookie(
-      NextResponse.json({ authenticated: true }),
+      NextResponse.json({ authenticated: true, verificationSent }),
       session.token,
     );
   } catch (e) {

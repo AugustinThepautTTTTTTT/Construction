@@ -62,10 +62,12 @@ export function skillTools(options?: {
   layout: boolean;
   products?: boolean;
   hasBill?: boolean;
+  paid?: boolean;
 }) {
   return specs
     .filter(
       (s) =>
+        (options?.paid !== false || s.name === "prepare_room_visual") &&
         (options?.layout !== false || s.name !== "update_room_cad") &&
         (options?.products !== false || s.name !== "search_material_product") &&
         (!(options?.products && options?.hasBill) ||

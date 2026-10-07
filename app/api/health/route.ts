@@ -1,3 +1,5 @@
+import { mailConfigured } from "@/lib/mail";
+import { googleConfigured } from "@/lib/google-auth";
 import { aiPolicy } from "@/lib/ai-budget";
 import { NextResponse } from "next/server";
 import { database } from "@/lib/database";
@@ -32,15 +34,14 @@ export async function GET() {
           testKey &&
           Boolean(
             process.env.STRIPE_WEBHOOK_SECRET &&
-            process.env.STRIPE_SINGLE_PRICE_ID &&
+            process.env.STRIPE_BASIC_PRICE_ID && process.env.STRIPE_PRO_PRICE_ID &&
             databaseStatus === "connected",
           ),
         stripeMode: "test",
-        email: Boolean(
-          process.env.SMTP_URL &&
-          process.env.EMAIL_FROM &&
-          databaseStatus === "connected",
-        ),
+        email: mailConfigured() && databaseStatus === "connected",
+        google: googleConfigured() && databaseStatus === "connected",
+        credits: databaseStatus === "connected",
+
       },
     },
     { status: databaseStatus === "unavailable" ? 503 : 200 },

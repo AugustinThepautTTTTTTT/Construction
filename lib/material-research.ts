@@ -1,9 +1,11 @@
 import { fetchProductImage } from "./product-images";
 import OpenAI from "openai";
+import { randomUUID } from "node:crypto";
+import { debitCredits, refundCredits, requirePaid, CreditError } from "./credits";
 import { z } from "zod";
 import type { Queryable } from "./repository";
 import { rateLimit } from "./database";
-import { aiPolicy, reserveAiCall } from "./ai-budget";
+import { aiPolicy } from "./ai-budget";
 import {
   estimateSchema,
   calculateEstimate,
@@ -43,6 +45,8 @@ export async function searchMaterialProduct(
   index: number,
   preferences = "",
 ): Promise<ProductComparison> {
+  await requirePaid(db, owner);
+  const operation = `search:${randomUUID()}`;
   const estimate = estimateSchema.parse(
     Object.fromEntries(
       Object.keys(estimateSchema.shape).map((key) => [
@@ -58,7 +62,7 @@ export async function searchMaterialProduct(
   const policy = aiPolicy();
   if (!policy)
     throw new ProductSearchError(
-      "Product search is unavailable or the PoC has expired.",
+      "Product search is temporarily unavailable.",
     );
   const claim = await db.query(
     "UPDATE roomwise.artifacts SET data=data || $1::jsonb WHERE id=$2 AND user_id=$3 AND kind='estimate' AND (data->>'productSearchStatus' IS DISTINCT FROM 'running' OR COALESCE((data->>'productSearchStartedAt')::timestamptz,'epoch'::timestamptz)<now()-interval '3 minutes') RETURNING id",
@@ -78,15 +82,7 @@ export async function searchMaterialProduct(
     );
   let phase = "limits";
   try {
-    if (!(await rateLimit(`product:${owner}`, 12, 86400)))
-      throw new ProductSearchError(
-        "Today's product search limit has been reached.",
-      );
-    // One product only: at most three hosted searches, with bounded Luna output.
-    if (!(await reserveAiCall(db, policy.limitCents, 15)))
-      throw new ProductSearchError(
-        "The shared PoC AI budget has been reached.",
-      );
+    await debitCredits(db, owner, operation, 'search');
     const client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       timeout: 60000,
@@ -151,6 +147,7 @@ export async function searchMaterialProduct(
         if (image) product.imageUrl = image;
       }),
     );
+    if (!products.length) await refundCredits(db, owner, operation);
     const comparison: ProductComparison = {
       index,
       preferences,
@@ -175,7 +172,8 @@ export async function searchMaterialProduct(
       "UPDATE roomwise.artifacts SET data=jsonb_set(data,'{productSearchStatus}','\"failed\"'::jsonb) WHERE id=$1 AND user_id=$2",
       [id, owner],
     );
-    if (e instanceof ProductSearchError) throw e;
+    await refundCredits(db, owner, operation).catch(() => {});
+    if (e instanceof CreditError || e instanceof ProductSearchError) throw e;
     const failure = e as { status?: number; code?: string; param?: string };
     console.warn("Roomwise product search failed", {
       phase,

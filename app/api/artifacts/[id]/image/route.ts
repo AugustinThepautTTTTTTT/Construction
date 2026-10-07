@@ -1,4 +1,5 @@
-import { reconcileImageBudget } from "@/lib/visual-recovery";
+import { randomUUID } from "node:crypto";
+import {debitCredits, refundCredits, CreditError} from "@/lib/credits";
 import { getCad } from "@/lib/cad/store";
 import OpenAI, { toFile } from "openai";
 import sharp from "sharp";
@@ -6,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { identity, sameOrigin, error } from "@/lib/server";
 import { database, rateLimit } from "@/lib/database";
-import { aiPolicy, reserveAiCall } from "@/lib/ai-budget";
+import { aiPolicy } from "@/lib/ai-budget";
 import { imageLimits } from "@/lib/image-limits";
 import { visualSchema } from "@/lib/room-artifacts";
 import {
@@ -48,6 +49,7 @@ export async function POST(
 ) {
   if (!sameOrigin(r)) return error("Invalid request origin.", 403);
   let artifactId: string | undefined, owner: string | undefined;
+  const operation = `image:${randomUUID()}`;
   try {
     const user = await identity(r),
       db = await database(),
@@ -61,16 +63,11 @@ export async function POST(
     );
     if (!result.rows.length) return error("Concept not found.", 404);
     const a = result.rows[0];
-    if (!user.pro_active && !a.paid)
-      return error("A Room Pass or Pro is required for image concepts.", 402);
     if (a.image) return NextResponse.json({ ready: true });
     const rejectQueued=async(message:string,status=400)=>{if(a.status==="queued")await db.query("UPDATE roomwise.artifacts SET status='failed',data=data || $1::jsonb WHERE id=$2 AND user_id=$3 AND status='queued'",[JSON.stringify({generationError:message}),id,user.id]);return error(message,status);};
     const policy = aiPolicy();
     if (!policy)
-      return rejectQueued("Image generation is unavailable or this PoC has expired.");
-    const limits = imageLimits(user.email);
-    if (!(await rateLimit(`visual:${user.id}`, limits.daily, 86400)))
-      return rejectQueued("You have reached today's concept limit.", 429);
+      return rejectQueued("Image generation is temporarily unavailable.");
     const visual = visualSchema.parse({
         title: a.data.title,
         sourcePhotoId: a.data.sourcePhotoId,
@@ -93,17 +90,6 @@ export async function POST(
         "UPDATE roomwise.artifacts SET status='failed' WHERE project_id=$1 AND kind='visual' AND status='running' AND (data->>'startedAt')::timestamptz<now()-interval '6 minutes'",
         [a.project_id],
       );
-      const count = await c.query(
-        "SELECT count(*)::int AS n FROM roomwise.artifacts WHERE project_id=$1 AND kind='visual' AND (image IS NOT NULL OR status='running')",
-        [a.project_id],
-      );
-      if (count.rows[0].n >= limits.perRoom) {
-        await c.query("ROLLBACK");
-        return rejectQueued(
-          `This room has reached its limit of ${limits.perRoom} image concepts.`,
-          429,
-        );
-      }
       const claim = await c.query(
         "UPDATE roomwise.artifacts SET status='running',data=data || jsonb_build_object('startedAt',now()) WHERE id=$1 AND user_id=$2 AND status<>'running' AND image IS NULL RETURNING id",
         [id, user.id],
@@ -112,6 +98,7 @@ export async function POST(
         await c.query("ROLLBACK");
         return error("This concept is already being generated.", 409);
       }
+      await debitCredits(c, user.id, operation, "image", a.project_id);
       await c.query("COMMIT");
     } catch (e) {
       await c.query("ROLLBACK");
@@ -121,8 +108,6 @@ export async function POST(
     }
     artifactId = id;
     owner = user.id;
-    if (!(await reserveAiCall(db, policy.limitCents, IMAGE_RESERVATION_CENTS)))
-      throw new Error("BUDGET_EXHAUSTED");
     const original = await sharp(photo.rows[0].data)
       .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 80 })
@@ -168,15 +153,16 @@ export async function POST(
         user.id,
       ],
     );
-    await reconcileImageBudget(db,user.id,id).catch(()=>console.warn("Roomwise image budget settlement deferred"));
+
     return NextResponse.json({ ready: true });
   } catch (e) {
     const db = await database();
+    if (owner && db) await refundCredits(db, owner, operation).catch(() => {});
     if (artifactId && db)
       await db
         .query(
           "UPDATE roomwise.artifacts SET status='failed',data=data || $3::jsonb WHERE id=$1 AND user_id=$2",
-          [artifactId, owner,JSON.stringify({generationError:e instanceof Error&&e.message==="BUDGET_EXHAUSTED"?"The shared PoC AI budget has been reached.":"The concept could not be generated. Your design brief is saved."})],
+          [artifactId, owner,JSON.stringify({generationError:e instanceof CreditError?e.message:"The concept could not be generated. Your design brief is saved."})],
         )
         .catch(() => {});
     console.error("Roomwise image generation failed", {
@@ -184,9 +170,9 @@ export async function POST(
       code: e instanceof OpenAI.APIError ? e.code : "image_failure",
     });
     return error(
-      e instanceof Error && e.message === "BUDGET_EXHAUSTED"
-        ? "The shared PoC AI budget has been reached."
-        : "The concept could not be generated. Check image-model access in your API project, or try again later.",
+      e instanceof CreditError
+        ? e.message
+        : "The concept could not be generated. Check image-model access in your API project, or try again later.", e instanceof CreditError ? 402 : 503,
     );
   }
 }

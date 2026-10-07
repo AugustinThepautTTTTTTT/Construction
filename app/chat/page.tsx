@@ -38,6 +38,8 @@ type Capabilities = {
     name?: string;
     pro_active: boolean;
     free_trial_used: boolean;
+    plan: "free" | "basic" | "pro";
+    credits: number;
   } | null;
 };
 const initial: Capabilities = { ai: false, checkout: false, user: null };
@@ -64,7 +66,7 @@ export default function ChatPage() {
     [],
   );
   const artifactsChanged = useCallback(
-    () => setProjectSignal((s) => s + 1),
+    () => { setProjectSignal((s) => s + 1); void api("/api/session").then(setCap).catch(() => {}); },
     [],
   );
   const [input, setInput] = useState(""),
@@ -93,7 +95,8 @@ export default function ChatPage() {
     composer = useRef<HTMLTextAreaElement>(null);
   const project = projects.find((p) => p.id === active),
     empty = !project?.messages.length;
-  const unlocked = Boolean(cap.user?.pro_active || project?.paid);
+  const unlocked = Boolean(cap.user?.email);
+  const outOfCredits = cap.user?.credits === 0;
   useEffect(() => {
     setSidebar(window.matchMedia("(min-width:1101px)").matches);
   }, []);
@@ -174,11 +177,11 @@ export default function ChatPage() {
         if (q.get("checkout") === "cancelled")
           setNotice("Checkout cancelled. Your chat is saved.");
         const chosen = list.find((p) => p.id === selected);
-        if (chosen && !chosen.paid && !session.user.pro_active) {
+        if (q.get("session_id") && q.get("checkout") === "success") {
           setConfirming(true);
           try {
             const result = await api("/api/billing/confirm", {
-              projectId: chosen.id,
+              ...(chosen ? {projectId: chosen.id} : {}),
               ...(q.get("session_id")
                 ? { sessionId: q.get("session_id") }
                 : {}),
@@ -188,7 +191,7 @@ export default function ChatPage() {
               window.history.replaceState(
                 null,
                 "",
-                `/chat?project=${chosen.id}`,
+                chosen ? `/chat?project=${chosen.id}` : "/chat",
               );
             } else if (q.get("checkout") === "success")
               setNotice(
@@ -370,7 +373,7 @@ export default function ChatPage() {
     let p = project;
     try {
       if (!p) {
-        // Use an unused paid Room Pass before creating a fresh conversation.
+        // Reuse an empty conversation created during checkout.
         p = projects.find((x) => x.paid && !x.messages.length);
         if (!p)
           p = (
@@ -386,10 +389,7 @@ export default function ChatPage() {
         setProjects((list) => [p!, ...list.filter((x) => x.id !== p!.id)]);
         window.history.replaceState(null, "", `/chat?project=${p!.id}`);
       }
-      const canSend =
-        cap.user.pro_active ||
-        p!.paid ||
-        (!cap.user.free_trial_used && !p!.previewUsed);
+      const canSend = (cap.user.credits ?? 0) >= 1;
       if (!canSend) {
         setPaywall(true);
         return;
@@ -420,6 +420,7 @@ export default function ChatPage() {
       });
       if (!response.ok) {
         const data = await response.json();
+        if (response.status === 402) setPaywall(true);
         throw new Error(data.error || "Could not start your reply.");
       }
 
@@ -529,40 +530,6 @@ export default function ChatPage() {
       setProgress("");
     }
   }
-  async function checkPayment() {
-    if (!project || confirming) return;
-    setConfirming(true);
-    setNotice("");
-    try {
-      const result = await api("/api/billing/confirm", {
-        projectId: project.id,
-      });
-      await refresh();
-      if (result.confirmed) {
-        setPaywall(false);
-        window.history.replaceState(null, "", `/chat?project=${project.id}`);
-      } else
-        setNotice(
-          "No completed payment found for this chat yet. You can try again shortly.",
-        );
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Could not verify payment.");
-    } finally {
-      setConfirming(false);
-    }
-  }
-  async function checkout(plan: "single" | "pro") {
-    if (!project) return;
-    setBusy(true);
-    setNotice("");
-    try {
-      const data = await api("/api/checkout", { plan, projectId: project.id });
-      window.location.assign(data.url);
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Could not open checkout.");
-      setBusy(false);
-    }
-  }
   function download() {
     if (!project) return;
     const blob = new Blob(
@@ -669,7 +636,7 @@ export default function ChatPage() {
               : busy
                 ? "Preparing your reply…"
                 : unlocked
-                  ? "Room Pass active"
+                  ? "Ready to create"
                   : "Your ideas, one conversation away."}
         </span>
         <Button
@@ -746,7 +713,7 @@ export default function ChatPage() {
         <Link className="account cleanAccount" href="/account">
           <Settings size={17} />
           <span>My account</span>
-          <small>{cap.user?.pro_active ? "Pro" : ""}</small>
+          <small>{cap.user?.plan || "Free"}</small>
         </Link>
       </aside>
       <section className="chatArea">
@@ -765,7 +732,7 @@ export default function ChatPage() {
               ? folders.find((f) => f.id === selectedFolder)?.title
               : project?.title || "Roomwise"}
           </span>
-          <div className="workspaceActions">
+          <div className="workspaceActions"><Link className={"creditBalance"+((cap.user?.credits ?? 0)<5?" low":"")} href="/account" title="View plan and credit activity"><b>{cap.user?.credits ?? 0}</b><span>credits left</span></Link>
             {project && !selectedFolder && (
               <Button
                 className="openProject"
@@ -814,7 +781,7 @@ export default function ChatPage() {
             key={selectedFolder}
             id={selectedFolder}
             signal={projectSignal}
-            unlocked={Boolean(cap.user?.pro_active)}
+            unlocked={unlocked}
             onChat={openChat}
           />
         ) : empty ? (
@@ -824,15 +791,7 @@ export default function ChatPage() {
             <small className="photoHelp">
               Attach room photos · Up to 3 per message, 10 MB each
             </small>
-            {project && !unlocked && (
-              <Button
-                className="checkPaymentLink"
-                disabled={confirming}
-                onClick={() => void checkPayment()}
-              >
-                Already paid? Check payment
-              </Button>
-            )}
+
           </div>
         ) : (
           <>
@@ -891,23 +850,11 @@ export default function ChatPage() {
             {inputBox}
           </>
         )}
-        {paywall && (
-          <div className="chatUpgrade" role="status">
-            <span>
-              Your free test is used. Continue this chat with a Room Pass.
-            </span>
-            <Button onClick={() => void checkout("single")} disabled={busy}>
-              Room Pass · $5
-            </Button>
-            <Button onClick={() => void checkout("pro")} disabled={busy}>
-              Pro · $50/month
-            </Button>
-            <Button
-              onClick={() => void checkPayment()}
-              disabled={busy || confirming}
-            >
-              Check payment
-            </Button>
+        {(paywall || outOfCredits) && (
+          <div className="creditUpgrade" role="status">
+            <div><strong>You’re out of credits</strong><p>Your project is saved. Get more room to create with a new plan.</p></div>
+            {cap.user?.plan === "free" && <Link href="/purchase?plan=basic">Basic · $5/month</Link>}
+            {cap.user?.plan !== "pro" ? <Link className="creditUpgradePrimary" href="/purchase?plan=pro">✦ Upgrade to Pro</Link> : <Link className="creditUpgradePrimary" href="/account">Manage plan</Link>}
           </div>
         )}
         <p className="disclaimer">

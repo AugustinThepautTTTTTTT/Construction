@@ -5,7 +5,8 @@ import { Button } from "@base-ui-components/react/button";
 import { CreditCard } from "lucide-react";
 import { api } from "@/lib/browser-storage";
 export type Account = {
-  user: { id: string; email: string; name: string; pro_active: boolean; email_verified: boolean };
+  user: { id: string; email: string; name: string; pro_active: boolean; email_verified: boolean; plan: "free"|"basic"|"pro"; credits: number };
+  usage?: {delta:number;description:string;created_at:string}[];
   stats: { rooms: number; unlocked: number }; billingAvailable: boolean; subscription: boolean;
 };
 function SettingsIcon({ name }: { name: "general" | "security" | "close" }) {
@@ -34,10 +35,11 @@ export function AccountSettings({ account, mail, onSaved, onLogout }: {
         <form onSubmit={e => { e.preventDefault(); void action(async () => { await api("/api/account", { name }); await onSaved(); setStatus("Profile saved."); }); }}>
           <div className="settingsRow settingsProfileRow"><label htmlFor="settings-name">Name</label><input id="settings-name" autoComplete="name" value={name} maxLength={80} onChange={e => setName(e.target.value)}/></div>
           <div className="settingsRow"><span>Email address</span><span className="settingsValue">{account.user.email}</span></div>
+          <div className="settingsRow"><span>{account.user.email_verified ? "Email confirmed" : "Confirm your email"}</span>{!account.user.email_verified && <Button type="button" className="settingsPill" disabled={busy||!mail} onClick={() => void action(async()=>{await api("/api/auth/confirmation",{});setStatus("Confirmation email sent.");})}>Send confirmation</Button>}</div>
           <div className="settingsRow"><span>Appearance</span><span className="settingsValue">Light</span></div>
           <div className="settingsFormActions"><Button type="submit" className="settingsPrimary" disabled={busy}>Save profile</Button></div>
         </form>
-        <div className="settingsRow"><div><span>Your workspace</span><small>{account.stats.rooms} saved rooms · {account.stats.unlocked} room passes</small></div><Link className="settingsPill" href="/chat">Open workspace</Link></div>
+        <div className="settingsRow"><div><span>Your workspace</span><small>{account.stats.rooms} saved rooms</small></div><Link className="settingsPill" href="/chat">Open workspace</Link></div>
         <div className="settingsRow"><span>Log out on this device</span><Button className="settingsPill" disabled={busy} onClick={() => void action(() => onLogout())}>Log out</Button></div>
       </> : tab === "security" ? <><h2>Security</h2><p className="settingsIntro">Keep your account and sessions secure.</p>
         <form className="settingsPassword" onSubmit={e => { e.preventDefault(); void action(async () => { await api("/api/auth/password", { currentPassword, newPassword: password }); setPassword(""); setCurrentPassword(""); setStatus("Password updated. Other devices have been signed out."); }); }}>
@@ -48,11 +50,13 @@ export function AccountSettings({ account, mail, onSaved, onLogout }: {
         <div className="settingsRow"><div><span>Email recovery</span><small>{mail ? "Password recovery is available by email." : "Email recovery is not enabled yet. Keep your password safe."}</small></div></div>
         <div className="settingsRow"><div><span>Log out of all devices</span><small>End every active session, including this one.</small></div><Button className="settingsPill" disabled={busy} onClick={() => void action(() => onLogout(true))}>Log out all</Button></div>
       </> : <><h2>Plan & billing</h2><p className="settingsIntro">Manage access to your room projects.</p>
-        <div className="settingsRow"><span>Current plan</span><span className="settingsPlanBadge">{account.user.pro_active ? "Pro" : "Free"}</span></div>
-        <div className="settingsRow"><span>Room passes</span><span className="settingsValue">{account.stats.unlocked}</span></div>
+        <div className="settingsRow"><span>Current plan</span><span className="settingsPlanBadge">{account.user.plan[0].toUpperCase()+account.user.plan.slice(1)}</span></div>
+        <div className="settingsRow"><span>Credits available</span><span className="settingsValue">{account.user.credits}</span></div>
         <div className="settingsRow"><div><span>Payments & subscription</span><small>Stripe test mode · no real charges</small></div><Button className="settingsPill" disabled={busy || !account.billingAvailable} onClick={() => void action(async () => { const result = await api("/api/billing/portal", {}); window.location.assign(result.url); })}>Manage billing</Button></div>
         {!account.billingAvailable && <p className="settingsHint">Billing becomes available after your first checkout.</p>}
-        {!account.user.pro_active && <div className="settingsRow"><div><span>More room to create</span><small>Pro includes access across your room projects.</small></div><Link href="/purchase?plan=pro" className="settingsPill">Explore Pro</Link></div>}
+        {account.user.plan !== "pro" && <div className="settingsRow"><div><span>More room to create</span><small>350 credits each month for multiple projects.</small></div><Link href="/purchase?plan=pro" className="settingsPill">Explore Pro</Link></div>}
+        <p className="settingsHint">Message · 1 credit &nbsp; Concept image · 2 credits &nbsp; Product search · 4 credits. Images and searches use credits in addition to the chat message. Unused credits carry over.</p>
+        <h3>Recent credit activity</h3><div className="creditActivity">{account.usage?.map((entry,i)=><div key={i}><span>{entry.description}<small>{new Date(entry.created_at).toLocaleDateString()}</small></span><b>{entry.delta>0?"+":""}{entry.delta}</b></div>)}</div>
       </>}
       {status && <p className="settingsStatus" role="status">{status}</p>}
     </div></div>

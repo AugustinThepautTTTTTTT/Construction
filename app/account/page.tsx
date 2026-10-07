@@ -22,6 +22,7 @@ export default function AccountPage() {
     [loaded, setLoaded] = useState(false),
     [enabled, setEnabled] = useState(false),
     [mail, setMail] = useState(false),
+    [google, setGoogle] = useState(false),
     [account, setAccount] = useState<Account | null>(null);
   const [reset, setReset] = useState(""),
     [next, setNext] = useState("/chat");
@@ -29,6 +30,7 @@ export default function AccountPage() {
     const c = await api("/api/session");
     setEnabled(c.accounts);
     setMail(c.email);
+    setGoogle(c.google);
     if (c.user?.email) {
       const a = await api("/api/account");
       setAccount(a);
@@ -138,7 +140,7 @@ export default function AccountPage() {
             </h1>
             <p>
               {mode === "signup"
-                ? "Create your account to save rooms across devices and keep your test purchases."
+                ? "Start with 10 free credits. Keep your ideas, room concepts and projects together."
                 : mode === "login"
                   ? "Sign in to your saved rooms and planning conversations."
                   : mode === "reset"
@@ -169,6 +171,7 @@ export default function AccountPage() {
                 </button>
               </div>
             )}
+            {(mode === "signup" || mode === "login") && google && <a className="googleSignIn" href={`/api/auth/google?next=${encodeURIComponent(next)}`}><span>G</span> Continue with Google</a>}
             <form onSubmit={submit}>
               {mode === "signup" && (
                 <>

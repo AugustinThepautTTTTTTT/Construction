@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { creditAccount } from "./credits";
 import { database } from "./database";
 export const SESSION_COOKIE = "roomwise_session";
 export function digest(token: string) {
@@ -28,7 +29,10 @@ export async function identity(request: NextRequest) {
     "SELECT u.id,u.email,u.name,u.email_verified,u.pro_active,EXISTS(SELECT 1 FROM roomwise.free_trials t WHERE t.user_id=u.id) AS free_trial_used FROM roomwise.sessions s JOIN roomwise.users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()",
     [digest(token)],
   );
-  return r.rows[0] || null;
+  const user = r.rows[0];
+  if (!user?.email) return user || null;
+  const credits = await creditAccount(db, user.id);
+  return {...user, plan:credits.plan, credits:credits.credits, subscription_status:credits.subscription_status};
 }
 export async function newSession(userId?: string) {
   const db = await database();

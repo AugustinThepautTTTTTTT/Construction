@@ -278,7 +278,7 @@ test("saved room tools preserve ownership, manual estimates and linked construct
     owner = randomUUID(),
     other = randomUUID();
   await db.query(
-    "INSERT INTO roomwise.users(id,email) VALUES($1,'owner@example.test'),($2,'other@example.test')",
+    "INSERT INTO roomwise.users(id,email,plan) VALUES($1,'owner@example.test','basic'),($2,'other@example.test','basic')",
     [owner, other],
   );
   const room = await repo.create(

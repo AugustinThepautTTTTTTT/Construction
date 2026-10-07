@@ -1,3 +1,5 @@
+import {mailConfigured} from "@/lib/mail";
+import {googleConfigured} from "@/lib/google-auth";
 import { aiPolicy } from "@/lib/ai-budget";
 import { NextRequest, NextResponse } from "next/server";
 import { databaseConfigured } from "@/lib/database";
@@ -17,11 +19,10 @@ function capabilities() {
       databaseConfigured() &&
       /^(sk|rk)_test_/.test(process.env.STRIPE_SECRET_KEY || "") &&
       process.env.STRIPE_WEBHOOK_SECRET &&
-      process.env.STRIPE_SINGLE_PRICE_ID,
+      process.env.STRIPE_BASIC_PRICE_ID,
     ),
-    email: Boolean(
-      databaseConfigured() && process.env.SMTP_URL && process.env.EMAIL_FROM,
-    ),
+    email: mailConfigured(),
+    google: googleConfigured(),
     ai: Boolean(aiPolicy()),
   };
 }

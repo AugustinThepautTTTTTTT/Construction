@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
-import nodemailer from "nodemailer";
+import {sendMail,mailConfigured} from "@/lib/mail";
 import { z } from "zod";
 import { database, rateLimit } from "@/lib/database";
 import { AccountRepository, hashPassword } from "@/lib/accounts";
@@ -55,12 +55,7 @@ export async function POST(r: NextRequest) {
     .object({ email: z.string().trim().email().max(254) })
     .safeParse(body);
   if (!parsed.success) return error("Enter a valid email.", 400);
-  if (
-    !process.env.SMTP_URL ||
-    !process.env.EMAIL_FROM ||
-    !process.env.NEXT_PUBLIC_APP_URL
-  )
-    return error("Email recovery is not configured yet.");
+  if (!mailConfigured()) return error("Email recovery is temporarily unavailable.");
   const email = parsed.data.email.toLowerCase();
   if (!(await rateLimit(`reset-email:${digest(email)}`, 3, 3600)))
     return error("Please wait before requesting another link.", 429);
@@ -77,14 +72,7 @@ export async function POST(r: NextRequest) {
     const url = new URL("/account", process.env.NEXT_PUBLIC_APP_URL);
     url.searchParams.set("reset", token);
     try {
-      await nodemailer
-        .createTransport(process.env.SMTP_URL)
-        .sendMail({
-          from: process.env.EMAIL_FROM,
-          to: email,
-          subject: "Reset your Roomwise password",
-          text: `Reset your password: ${url}\n\nExpires in 15 minutes. Ignore this message if you did not request it.`,
-        });
+      await sendMail(email,"Reset your Roomwise password",`Reset your password: ${url}\n\nExpires in 15 minutes. Ignore this message if you did not request it.`);
     } catch {
       await db.query(
         "DELETE FROM roomwise.password_resets WHERE token_hash=$1",

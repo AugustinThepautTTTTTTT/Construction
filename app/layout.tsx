@@ -12,12 +12,12 @@ const serif = DM_Serif_Display({
 export const metadata: Metadata = {
   title: "Roomwise — Your room, figured out",
   description:
-    "Start a free room-planning preview. Clarify renovation priorities, budget assumptions and work sequence before you spend.",
+    "AI room renovation and modernization: create photo concepts, assess material quantities, find products and build a connected refurbishment work plan.",
   keywords: [
     "AI room planner",
     "renovation plan",
     "interior design AI",
-    "remodel budget",
+    "remodel budget", "home modernization", "room refurbishment", "renovation bill of materials", "furniture product finder",
   ],
   openGraph: {
     title: "Roomwise — Your room, figured out",

@@ -117,7 +117,7 @@ test("bill creation spends no research budget; saved choices, quantity edits and
     owner = randomUUID(),
     other = randomUUID();
   await db.query(
-    "INSERT INTO roomwise.users(id,email) VALUES($1,'workspace@test.com'),($2,'other-workspace@test.com')",
+    "INSERT INTO roomwise.users(id,email,plan) VALUES($1,'workspace@test.com','basic'),($2,'other-workspace@test.com','basic')",
     [owner, other],
   );
   const repo = new ProjectRepository(q),
@@ -316,7 +316,7 @@ test("search cannot create a one-item replacement of a complete BOM; older parti
   await db.exec(SCHEMA);
   const owner = randomUUID();
   await db.query(
-    "INSERT INTO roomwise.users(id,email) VALUES($1,'search-protect@test.com')",
+    "INSERT INTO roomwise.users(id,email,plan) VALUES($1,'search-protect@test.com','basic')",
     [owner],
   );
   const q = { query: (s: string, v?: any[]) => db.query<any>(s, v) },

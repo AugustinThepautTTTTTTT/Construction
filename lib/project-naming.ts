@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import type { Queryable } from "./repository";
-import { aiPolicy, reserveAiCall } from "./ai-budget";
+import { aiPolicy } from "./ai-budget";
 export function cleanTitle(text: string) {
   return text
     .replace(/^[\s"'`]+|[\s"'`]+$/g, "")
@@ -49,7 +49,7 @@ export async function nameProject(
       status = "complete";
     } else {
       const policy = aiPolicy();
-      if (policy && (await reserveAiCall(db, policy.limitCents, 1))) {
+      if (policy) {
         const client = new OpenAI({ timeout: 10000, maxRetries: 0 });
         const response = await client.responses.create({
           model: policy.model,

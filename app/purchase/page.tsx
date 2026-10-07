@@ -7,20 +7,16 @@ import { briefSchema } from "@/lib/domain";
 
 export default function PurchasePage() {
   const started = useRef(false);
-  const [plan, setPlan] = useState<"single" | "pro">("single");
+  const [plan, setPlan] = useState<"basic" | "pro">("basic");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
-  async function openCheckout(selected: "single" | "pro") {
+  async function openCheckout(selected: "basic" | "pro") {
     setBusy(true);
     setError("");
     try {
       const session = await api("/api/session");
       if (!session.user?.email) {
         window.location.replace(`/account?next=${encodeURIComponent(`/purchase?plan=${selected}`)}`);
-        return;
-      }
-      if (session.user.pro_active) {
-        window.location.replace("/chat");
         return;
       }
       const cache = `roomwise:purchase:${session.user.id}:${selected}`;
@@ -53,15 +49,15 @@ export default function PurchasePage() {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const selected = new URLSearchParams(window.location.search).get("plan") === "pro" ? "pro" : "single";
+    const selected = new URLSearchParams(window.location.search).get("plan") === "pro" ? "pro" : "basic";
     setPlan(selected);
     void openCheckout(selected);
   }, []);
   return <main className="accountPage"><section className="accountCard">
     <Link href="/" className="brand"><span className="brandMark">R</span>roomwise</Link>
     <p className="kicker">ACCOUNT → SECURE CHECKOUT → YOUR WORKSPACE</p>
-    <h1>{plan === "pro" ? "Roomwise Pro" : "Your Room Pass"}</h1>
-    <p>{plan === "pro" ? "$50/month · cancel through your billing portal" : "$5 once · one room, no subscription"}</p>
+    <h1>{plan === "pro" ? "Roomwise Pro" : "Roomwise Basic"}</h1>
+    <p>{plan === "pro" ? "$50/month · 350 credits · cancel anytime" : "$5/month · 30 credits · cancel anytime"}</p>
     <p><ShieldCheck size={16}/> Stripe test checkout. No real charge in this PoC.</p>
     {busy ? <p role="status">Opening your secure checkout…</p> : <>
       <p role="alert" className="formError">{error}</p>

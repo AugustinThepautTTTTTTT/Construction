@@ -7,6 +7,18 @@ ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS name text NOT NULL DEFAULT '
 ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS password_hash text;
 ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false;
 ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS stripe_customer_id text UNIQUE;
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS plan text NOT NULL DEFAULT 'free' CHECK(plan IN ('free','basic','pro'));
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS credits integer NOT NULL DEFAULT 0 CHECK(credits>=0);
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS credits_initialized boolean NOT NULL DEFAULT false;
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS subscription_status text NOT NULL DEFAULT 'none';
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS google_id text UNIQUE;
+CREATE TABLE IF NOT EXISTS roomwise.free_credit_claims(email_key text PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id));
+CREATE TABLE IF NOT EXISTS roomwise.credit_ledger(operation_key text PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),project_id uuid,delta integer NOT NULL,kind text NOT NULL,description text NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS roomwise_credits_owner ON roomwise.credit_ledger(user_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS roomwise.email_verifications(token_hash text PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
+ALTER TABLE roomwise.users ADD COLUMN IF NOT EXISTS checkout_session_id text;
+CREATE TABLE IF NOT EXISTS roomwise.email_outbox(id text PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),subject text NOT NULL,body text NOT NULL,status text NOT NULL DEFAULT 'pending',attempts integer NOT NULL DEFAULT 0,created_at timestamptz NOT NULL DEFAULT now());
+ALTER TABLE roomwise.email_outbox ADD COLUMN IF NOT EXISTS attempted_at timestamptz;
 CREATE TABLE IF NOT EXISTS roomwise.password_resets(token_hash text PRIMARY KEY,user_id uuid NOT NULL REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.sessions(token_hash text PRIMARY KEY, user_id uuid NOT NULL REFERENCES roomwise.users(id), expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS roomwise.magic_links(token_hash text PRIMARY KEY,email text NOT NULL,guest_id uuid REFERENCES roomwise.users(id),expires_at timestamptz NOT NULL);
@@ -18,6 +30,7 @@ ALTER TABLE roomwise.projects ADD COLUMN IF NOT EXISTS title_started_at timestam
 CREATE INDEX IF NOT EXISTS roomwise_projects_folder_idx ON roomwise.projects(user_id,folder_id);
 CREATE TABLE IF NOT EXISTS roomwise.free_trials(user_id uuid PRIMARY KEY REFERENCES roomwise.users(id),project_id uuid NOT NULL REFERENCES roomwise.projects(id),created_at timestamptz NOT NULL DEFAULT now());
 INSERT INTO roomwise.free_trials(user_id,project_id) SELECT DISTINCT ON (p.user_id) p.user_id,p.id FROM roomwise.projects p JOIN roomwise.users u ON u.id=p.user_id WHERE p.preview_used=true AND p.paid=false AND u.email IS NOT NULL ORDER BY p.user_id,p.updated_at ON CONFLICT DO NOTHING;
+UPDATE roomwise.users u SET plan=CASE WHEN pro_active THEN 'pro' ELSE 'basic' END WHERE credits_initialized=false AND plan='free' AND (pro_active OR EXISTS(SELECT 1 FROM roomwise.projects p WHERE p.user_id=u.id AND p.paid));
 CREATE INDEX IF NOT EXISTS roomwise_projects_owner ON roomwise.projects(user_id,updated_at);
 CREATE TABLE IF NOT EXISTS roomwise.stripe_events(id text PRIMARY KEY,created_at timestamptz NOT NULL DEFAULT now());
 CREATE TABLE IF NOT EXISTS roomwise.ai_budget(id text PRIMARY KEY,limit_cents integer NOT NULL CHECK(limit_cents BETWEEN 0 AND 1000),reserved_cents integer NOT NULL DEFAULT 0 CHECK(reserved_cents BETWEEN 0 AND 1000));

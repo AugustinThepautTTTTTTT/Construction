@@ -31,7 +31,7 @@ test('CAD solid walls contain actual door/window holes and supply the canonical 
  const resized=validateCad(scaleRoom(room,5,3));assert.equal(roomMetrics(cadPlan(resized)).area,15);
 });
 test('CAD saves atomic revisions, protects owners, rejects stale concurrent edits and restores without erasing history',async()=>{
- const db=new PGlite();await db.exec(SCHEMA);const owner=randomUUID(),other=randomUUID();await db.query('INSERT INTO roomwise.users(id,email) VALUES($1,$2),($3,$4)',[owner,'cad@test.com',other,'other@test.com']);
+ const db=new PGlite();await db.exec(SCHEMA);const owner=randomUUID(),other=randomUUID();await db.query('INSERT INTO roomwise.users(id,email,plan) VALUES($1,$2,\'basic\'),($3,$4,\'basic\')',[owner,'cad@test.com',other,'other@test.com']);
  const project=await new ProjectRepository(db as any).create(owner,briefSchema.parse({room:'Bathroom',goal:'Create CAD'}));
  const styled=applyFinish({...room,confirmed:true},'floor','oak');styled.appearance!.lighting='evening';
  const first=await saveCad(db as any,owner,project.id,0,styled,'ai','From photos');assert.equal(first.revision,1);

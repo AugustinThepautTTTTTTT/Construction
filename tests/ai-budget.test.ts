@@ -22,7 +22,7 @@ test("the shared PoC budget cannot be overspent by concurrent calls or a new wor
   assert.equal(saved.rows[0].reserved_cents, 500);
   await db.close();
 });
-test("only Luna is allowed, the budget cannot be raised above ten dollars, and expiry is required", () => {
+test("only Luna is allowed; legacy PoC caps and expiry no longer block credited accounts", () => {
   const valid = {
     OPENAI_API_KEY: "test-only",
     OPENAI_MODEL: "gpt-6-luna",
@@ -40,9 +40,9 @@ test("only Luna is allowed, the budget cannot be raised above ten dollars, and e
     ),
     null,
   );
-  assert.equal(aiPolicy(valid, Date.parse("2026-10-13T00:00:00Z")), null);
-  assert.equal(aiPolicy({ ...valid, OPENAI_EXPIRES_AT: "" }), null);
-  assert.equal(aiPolicy({ ...valid, OPENAI_BUDGET_CENTS: "NaN" }), null);
+  assert.equal(aiPolicy(valid, Date.parse("2026-10-13T00:00:00Z"))?.model, "gpt-6-luna");
+  assert.equal(aiPolicy({ ...valid, OPENAI_EXPIRES_AT: "" })?.model, "gpt-6-luna");
+  assert.equal(aiPolicy({ ...valid, OPENAI_BUDGET_CENTS: "NaN" })?.model, "gpt-6-luna");
 });
 test("oversized saved history is trimmed but an oversized new message never reaches the API", () => {
   const history = Array.from({ length: 22 }, () => ({

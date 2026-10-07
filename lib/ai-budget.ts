@@ -1,29 +1,17 @@
 import type { Message } from "./domain";
 import type { Queryable } from "./repository";
 export const LUNA_MODEL = "gpt-6-luna";
-// Conservative reservation per Luna pass: bounded text/history and 6,000 output tokens,
-// standard Luna pricing. No retries or refunds after ambiguous failures.
-// Image edits reserve 50 cents; a requested single-item product comparison reserves 15 cents.
-// The 5-cent allowance greatly exceeds the documented cost of a bounded call.
+// Legacy PoC reservation helpers are retained for historical accounting only.
+// Active chat, image and search flows use the per-account credit ledger.
 export const AI_CALL_CENTS = 5;
 export const POC_MAX_CENTS = 1000;
 const MAX_INPUT_BYTES = 65536;
 export function aiPolicy(
   env: Record<string, string | undefined> = process.env,
-  now = Date.now(),
+  _now = Date.now(),
 ) {
-  const limit = Number(env.OPENAI_BUDGET_CENTS);
-  const expiry = Date.parse(env.OPENAI_EXPIRES_AT || "");
-  if (
-    !env.OPENAI_API_KEY ||
-    env.OPENAI_MODEL !== LUNA_MODEL ||
-    !Number.isSafeInteger(limit) ||
-    limit < AI_CALL_CENTS ||
-    !Number.isFinite(expiry) ||
-    now >= expiry
-  )
-    return null;
-  return { model: LUNA_MODEL, limitCents: Math.min(limit, POC_MAX_CENTS) };
+  if (!env.OPENAI_API_KEY || env.OPENAI_MODEL !== LUNA_MODEL) return null;
+  return { model: LUNA_MODEL, limitCents: POC_MAX_CENTS };
 }
 export function boundedInput(
   instructions: string,

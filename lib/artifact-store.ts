@@ -1,3 +1,4 @@
+import {requirePaid} from "./credits";
 import { cadUpdateSchema, cadPlan } from "./cad/model";
 import { getCad, saveCad } from "./cad/store";
 import {
@@ -27,6 +28,7 @@ export async function runRoomTool(
     [projectId, owner],
   );
   if (!owned.rows.length) throw new Error("Room not found.");
+  if (["search_material_product","update_room_cad","create_material_estimate","create_construction_plan"].includes(name)) await requirePaid(db, owner);
   if (name === "search_material_product") {
     const lookup = productLookupSchema.parse(args);
     const bill = await db.query(
@@ -131,14 +133,6 @@ export async function runRoomTool(
       priceSources: [],
     };
   } else throw new Error("Unknown room skill.");
-  const count = await db.query(
-    "SELECT count(*)::int AS n FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2",
-    [projectId, owner],
-  );
-  if (count.rows[0].n >= 30)
-    throw new Error(
-      "This room has reached its limit of 30 saved deliverables. Start another room.",
-    );
   const id = randomUUID();
   await db.query(
     "INSERT INTO roomwise.artifacts(id,user_id,project_id,kind,data,model) VALUES($1,$2,$3,$4,$5::jsonb,'gpt-6-luna')",
@@ -158,6 +152,6 @@ export async function runRoomTool(
         ? "Construction checklist saved, linked to the bill rows. The app shows the ordered steps, materials, tools and supplier links directly in chat and in the project Construction plan folder. Provide only a short polished introduction."
         : kind === "estimate"
           ? "Bill saved with quantities, estimated allowances and Excel export. No internet search has run. Product search is an optional advanced capability for ONE item explicitly requested by the user."
-          : "Before/after design saved and queued. The application automatically starts one image edit for eligible paid accounts and shows it directly in chat and also saves it in the project visual folder. Do not say it is finished yet.",
+          : "Before/after design saved and queued. The application automatically starts one image edit for signed-in accounts with credits and shows it directly in chat and also saves it in the project visual folder. Do not say it is finished yet.",
   };
 }

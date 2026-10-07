@@ -5,7 +5,7 @@ import { ArrowUpRight, Download, FileText, Image as ImageIcon } from "lucide-rea
 import { api } from "@/lib/browser-storage";
 import { materialPresentation, money, retailerName } from "@/lib/material-presentation";
 import type { Artifact } from "@/lib/room-artifacts";
-import { RoomArtifact } from "./room-artifact";
+import { ConstructionPlanView } from "./construction-plan";
 
 export function ChatArtifact({ id, artifact: shared, unlocked, onOpen, onChanged }: {
   id: string; artifact?: Artifact; unlocked: boolean;
@@ -32,7 +32,8 @@ export function ChatArtifact({ id, artifact: shared, unlocked, onOpen, onChanged
     finally { setBusy(false); }
   }
   if (!artifact) return <div className="chatArtifactLoading" role="status">{notice || "Preparing your project item…"}</div>;
-  if (artifact.kind === "plan") return <RoomArtifact id={id} />;
+  if (artifact.kind === "plan") return null;
+  if (artifact.kind === "construction") return <ConstructionPlanView artifact={artifact} onOpen={onOpen}/>;
   if (artifact.kind === "estimate") return <ChatBill artifact={artifact} onOpen={onOpen} onChanged={() => { onChanged(); if (!shared) void api(`/api/artifacts/${id}`).then(result => setSaved(result.artifact)); }} unlocked={unlocked} />;
   return <div className="chatVisualResult">
     {artifact.hasImage ? <ChatVisual artifact={artifact} /> : <div className="chatVisualPending" role="status"><ImageIcon size={25} /><strong>{artifact.status === "failed" ? "Your concept was interrupted" : !unlocked ? "A Room Pass unlocks this concept" : "Creating your room concept…"}</strong><p>{artifact.data.generationError || "Your image will appear here automatically. You can keep chatting."}</p>{artifact.status === "failed" && unlocked && <Button disabled={busy} onClick={() => void retry()}>{busy ? "Retrying…" : "Retry concept"}</Button>}</div>}

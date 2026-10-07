@@ -299,7 +299,7 @@ export default function ChatPage() {
       setProgress("Reviewing your room and request…");
       await readChatStream(response, (event) => {
         if(event.type === "cad"){setProjectSignal(s=>s+1);setPanelFocus("layout");setProjectPanelOpen(true);setSidebar(false);}
-        if(event.type === "artifact"){setProjectSignal(s=>s+1);setPanelFocus(event.kind === "estimate"?"materials":"visuals");setSidebar(false);setHighlight(null);}
+        if(event.type === "artifact"){setProjectSignal(s=>s+1);setPanelFocus(event.kind === "estimate"?"materials":event.kind === "construction"?"construction":"visuals");setSidebar(false);setHighlight(null);}
         if (event.type === "status") setProgress(event.message);
         if (event.type === "artifact")
           setProjects((list) =>
@@ -622,7 +622,7 @@ export default function ChatPage() {
                   <i />
                   <i />
                   <i />
-                  {progress || "Preparing your reply…"}
+                  Preparing your reply…
                 </div>
               )}
             </div>

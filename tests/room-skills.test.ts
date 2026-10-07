@@ -247,6 +247,8 @@ test("price research retains only retrieved local retailer URLs with matching cu
 test("skills expose validated tools and the image brief locks original structural geometry", () => {
   const tools = skillTools();
   assert.equal(tools.length, 4);
+  assert.ok(!tools.some(t=>t.name==="create_room_plan"));
+  assert.ok(tools.some(t=>t.name==="create_construction_plan"));
   for (const tool of tools) {
     assert.equal(tool.strict, true);
     assert.equal(tool.parameters.additionalProperties, false);
@@ -266,7 +268,7 @@ test("skills expose validated tools and the image brief locks original structura
   assert.equal(ROOM_IMAGE_MODEL, "gpt-image-2.5-sunburst");
   assert.equal(IMAGE_RESERVATION_CENTS, 50);
 });
-test("saved room tools preserve ownership, provisional plans and attached exportable estimates", async () => {
+test("saved room tools preserve ownership, manual estimates and linked construction plans", async () => {
   const db = new PGlite();
   await db.exec(SCHEMA);
   const q = {
@@ -287,19 +289,20 @@ test("saved room tools preserve ownership, provisional plans and attached export
     runRoomTool(q, other, room.id, "create_room_plan", plan),
     /Room not found/,
   );
-  const p = await runRoomTool(q, owner, room.id, "create_room_plan", plan);
+  await assert.rejects(runRoomTool(q, owner, room.id, "create_room_plan", plan), /Unknown room skill/);
   const e = await runRoomTool(
     q,
     owner,
     room.id,
     "create_material_estimate",
-    estimate,
+    {...estimate,items:estimate.items.map(item=>({...item,manualQuantity:12}))},
   );
+  const p=await runRoomTool(q,owner,room.id,"create_construction_plan",{title:"Kitchen works",estimateId:e.id,overview:"Refresh retained finishes",steps:[{title:"Lay flooring",instructions:["Prepare sound dry substrate and follow the selected floor installation guide."],materialIndexes:[0],dependsOn:[],duration:"Half a day",dryingTime:"Follow adhesive label if bonded",checks:["Level finish"],professionalRequired:false}],assumptions:["Provisional area"]});
   const result = await db.query<{ data: any }>(
     "SELECT data FROM roomwise.artifacts WHERE id=$1 AND user_id=$2",
     [e.id, owner],
   );
-  assert.equal(result.rows[0].data.plan.confirmed, false);
+  assert.equal(result.rows[0].data.plan, null);
   assert.equal(result.rows[0].data.calculations.items[0].quantity, 6);
   assert.equal(
     (

@@ -10,7 +10,7 @@ export const priceResearchSchema = z
       .array(
         z
           .object({
-            index: z.number().int().min(0).max(15),
+            index: z.number().int().min(0).max(39),
             price: z.number().positive().max(100000),
             url: z.string().url(),
             title: z.string().max(200),
@@ -25,7 +25,7 @@ export const priceResearchSchema = z
           })
           .strict(),
       )
-      .max(16),
+      .max(40),
   })
   .strict();
 export function priceResearchJsonSchema() {
@@ -65,6 +65,7 @@ export function vettedPrices(
   estimate: Estimate,
   urls: Set<string>,
   findings: string,
+  diagnostics?: Record<string,number>,
 ): PriceSource[] {
   const parsed = priceResearchSchema.parse(raw),
     domains = retailerDomains(estimate.country);
@@ -77,27 +78,16 @@ export function vettedPrices(
     } catch {
       return [];
     }
-    if (
-      !item ||
-      seen.has(product.index) ||
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      !urls.has(product.url) ||
-      product.currency !== estimate.currency ||
-      (normalizedUnit(product.unit) !== normalizedUnit(item.unit) && (!product.quantityPerPack || !["pot","pack","bag","bottle","piece","roll","box"].includes(normalizedUnit(product.unit)) || !product.packEvidence || !findings.includes(product.packEvidence) || !packContainsUnit(product.packEvidence,item.unit) || !containsAmount(product.packEvidence,product.quantityPerPack))) ||
-      !findings.includes(product.sourceEvidence) ||
-      !containsAmount(product.sourceEvidence, product.price) ||
-      (product.coveragePerUnit !== null && (!product.coverageEvidence || !findings.includes(product.coverageEvidence) || !containsAmount(product.coverageEvidence, product.coveragePerUnit))) ||
-      /(?:search|recherche|category|categories)(?:[/?-]|$)/i.test(url.pathname) ||
-      url.pathname === "/" ||
-      (domains.length &&
-        !domains.some(
-          (domain) =>
-            url.hostname === domain || url.hostname.endsWith("." + domain),
-        ))
-    )
-      return [];
+    const rejected = !item ? "index" : seen.has(product.index) ? "duplicate" :
+      url.protocol !== "https:" || url.username || url.password ? "unsafe_url" :
+      !urls.has(product.url) ? "unretrieved_url" :
+      product.currency !== estimate.currency ? "currency" :
+      (normalizedUnit(product.unit) !== normalizedUnit(item.unit) && (!product.quantityPerPack || !["pot","pack","bag","bottle","piece","roll","box"].includes(normalizedUnit(product.unit)) || !product.packEvidence || !findings.includes(product.packEvidence) || !packContainsUnit(product.packEvidence,item.unit) || !containsAmount(product.packEvidence,product.quantityPerPack))) ? "pack_unit" :
+      !findings.includes(product.sourceEvidence) || !containsAmount(product.sourceEvidence, product.price) ? "price_evidence" :
+      (product.coveragePerUnit !== null && (!product.coverageEvidence || !findings.includes(product.coverageEvidence) || !containsAmount(product.coverageEvidence, product.coveragePerUnit))) ? "coverage_evidence" :
+      /(?:search|recherche|category|categories)(?:[/?-]|$)/i.test(url.pathname) || url.pathname === "/" ? "category_url" :
+      (domains.length && !domains.some(domain=>url.hostname === domain || url.hostname.endsWith("." + domain))) ? "retailer_domain" : null;
+    if(rejected){if(diagnostics)diagnostics[rejected]=(diagnostics[rejected]||0)+1;return [];}
     seen.add(product.index);
     return [
       {

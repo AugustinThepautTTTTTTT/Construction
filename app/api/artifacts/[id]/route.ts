@@ -8,6 +8,7 @@ import {
   planSchema,
   calculateEstimate,
 } from "@/lib/room-artifacts";
+import { linkConstruction } from "@/lib/construction-plan";
 export async function GET(
   r: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -28,6 +29,10 @@ export async function GET(
     if(artifact?.kind === "estimate"){
       const geometry=await projectGeometry(db,user.id,artifact.project_id);
       if(geometry){artifact.data={...artifact.data,...geometry};artifact.data.calculations=calculateEstimate(artifact.data,artifact.data.plan);}
+    }
+    if(artifact?.kind === "construction"){
+      const bill=await db.query("SELECT id,kind,data FROM roomwise.artifacts WHERE id=$1 AND user_id=$2 AND project_id=$3 AND kind='estimate'",[artifact.data.estimateId,user.id,artifact.project_id]);
+      if(bill.rows[0]){const geometry=await projectGeometry(db,user.id,artifact.project_id);if(geometry)bill.rows[0].data.calculations=calculateEstimate(bill.rows[0].data,geometry.plan);artifact.data=linkConstruction(artifact.data,bill.rows[0]);}
     }
     return result.rows.length
       ? NextResponse.json(

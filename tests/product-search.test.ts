@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type OpenAI from "openai";
-import { productSearchRequest, runProductSearch, reusableProductResearch, PRICE_RESEARCH_VERSION } from "../lib/product-search";
+import { productSearchRequest, runProductSearch, reusableProductResearch, PRICE_RESEARCH_VERSION, productSearchGroups, needsAutomaticProducts } from "../lib/product-search";
 import { estimateSchema } from "../lib/room-artifacts";
 const estimate=estimateSchema.parse({title:"Bathroom",country:"FR",city:"Mulhouse",currency:"EUR",items:[{item:"Wall paint",specification:"Bathroom washable warm white",basis:"manual",manualQuantity:1,unit:"litre",coveragePerUnit:null,coats:1,waste:0,priceLow:15,priceHigh:35}],assumptions:[],exclusions:[]});
 test("product searches target the material and local retailers on Luna with bounded calls",()=>{
@@ -27,4 +27,13 @@ test("empty, old-version, partial and stale bills can search again",()=>{
   assert.equal(reusableProductResearch({...data,priceResearchVersion:1}),false);
   assert.equal(reusableProductResearch({...data,items:[{},{}]}),false);
   assert.equal(reusableProductResearch({...data,pricesCheckedAt:"2020-01-01"}),false);
+});
+
+test("automatic sourcing includes every row of a complete bill without an endless retry loop",()=>{
+  assert.deepEqual(productSearchGroups(9),[[0,1,2,3],[4,5,6,7],[8]]);
+  assert.equal(productSearchGroups(40).flat().length,40);
+  assert.equal(needsAutomaticProducts({priceSources:[]}),true);
+  assert.equal(needsAutomaticProducts({priceResearchAttemptVersion:PRICE_RESEARCH_VERSION}),false);
+  assert.equal(needsAutomaticProducts({priceResearchStatus:"running"}),false);
+  const request=productSearchRequest(estimate,[0],"gpt-6-luna");assert.equal(request.max_tool_calls,6);
 });

@@ -4,7 +4,7 @@
   "buildCommand": "npm run build",
   "functions": {
     "app/api/chat/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 300
     }
   }
 }

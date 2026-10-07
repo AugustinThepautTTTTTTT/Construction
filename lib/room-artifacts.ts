@@ -91,7 +91,7 @@ export const estimateSchema = z
           .strict(),
       )
       .min(1)
-      .max(16),
+      .max(40),
     assumptions: z.array(text).max(12),
     exclusions: z.array(text).max(12),
   })
@@ -113,7 +113,7 @@ export type PriceSource = {
 };
 export type Artifact = {
   id: string;
-  kind: "plan" | "estimate" | "visual";
+  kind: "plan" | "estimate" | "visual" | "construction";
   data: any;
   status: "ready" | "queued" | "running" | "failed";
   model?: string;
@@ -251,9 +251,9 @@ export function calculateEstimate(estimate: Estimate, plan: RoomPlan | null) {
       throw new Error("A price range is reversed.");
     let base: number | null = item.manualQuantity;
     if (item.basis === "floor_area" || item.basis === "ceiling_area")
-      base = metrics?.area ?? null;
-    if (item.basis === "wall_area") base = metrics?.wallArea ?? null;
-    if (item.basis === "perimeter") base = metrics?.perimeter ?? null;
+      base = metrics?.area ?? item.manualQuantity;
+    if (item.basis === "wall_area") base = metrics?.wallArea ?? item.manualQuantity;
+    if (item.basis === "perimeter") base = metrics?.perimeter ?? item.manualQuantity;
     if (base === null)
       throw new Error(`Measurements are missing for ${item.item}.`);
     const required = base * item.coats * (1 + item.waste);

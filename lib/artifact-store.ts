@@ -5,13 +5,12 @@ import { researchMaterialPrices } from "./material-research";
 import { randomUUID } from "node:crypto";
 import type { Queryable } from "./repository";
 import {
-  planSchema,
   visualSchema,
   estimateSchema,
-  validatePlan,
   calculateEstimate,
   type RoomPlan,
 } from "./room-artifacts";
+import { constructionSchema, validateConstruction } from "./construction-plan";
 export async function runRoomTool(
   db: Queryable,
   owner: string,
@@ -31,11 +30,12 @@ export async function runRoomTool(
     return {id:projectId,kind:"cad",revision:cad.revision,summary:changeSummary};
   }
   let kind: string, data: Record<string, unknown>;
-  if (name === "create_room_plan") {
-    const plan = planSchema.parse(args);
-    validatePlan(plan);
-    kind = "plan";
-    data = { ...plan, confirmed: false };
+  if (name === "create_construction_plan") {
+    const plan = constructionSchema.parse(args);
+    const bill = await db.query("SELECT id,kind,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",[plan.estimateId,projectId,owner]);
+    if(!bill.rows.length)throw new Error("Create the complete bill of materials before the construction plan.");
+    validateConstruction(plan,{id:bill.rows[0].id,kind:bill.rows[0].kind,data:bill.rows[0].data});
+    kind="construction";data=plan;
   } else if (name === "prepare_room_visual") {
     const visual = visualSchema.parse(args);
     const photo = await db.query(
@@ -48,18 +48,15 @@ export async function runRoomTool(
     data = visual;
   } else if (name === "create_material_estimate") {
     const estimate = estimateSchema.parse(args);
-    const latest = await db.query(
-      "SELECT id,data FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='plan' ORDER BY created_at DESC LIMIT 1",
-      [projectId, owner],
-    );
+
     const cad = await getCad(db,owner,projectId);
-    const plan = cad ? cadPlan(cad.model) : (latest.rows[0]?.data || null) as RoomPlan | null;
+    const plan = cad ? cadPlan(cad.model) : null as RoomPlan | null;
     const calculations = calculateEstimate(estimate, plan);
     kind = "estimate";
     data = {
       ...estimate,
       plan,
-      planId: cad ? null : latest.rows[0]?.id || null,
+      planId: null,
       cadRevision: cad?.revision || null,
       calculations,
       priceSources: [],
@@ -91,8 +88,8 @@ export async function runRoomTool(
     researchNotice,
     kind,
     summary:
-      kind === "plan"
-        ? "2D plan and material assessment saved; dimensions await user confirmation."
+      kind === "construction"
+        ? "Construction checklist saved, linked to the bill rows. The app shows the ordered steps, materials, tools and supplier links directly in chat and in the project Construction plan folder. Provide only a short polished introduction."
         : kind === "estimate"
           ? "Bill saved with quantities and Excel export. Only products in products have verified provider links/prices; all other lines are estimated allowances. Discuss unmatched items instead of claiming a fully sourced basket."
           : "Before/after design saved and queued. The application automatically starts one image edit for eligible paid accounts and shows it directly in chat and also saves it in the project visual folder. Do not say it is finished yet.",

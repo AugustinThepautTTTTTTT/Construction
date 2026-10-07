@@ -13,7 +13,7 @@ test('materials and work requests cannot dispatch the image tool',()=>{
 
 test('an existing photo concept does not authorize an image for the next implementation request',()=>{
  const history=[{role:'user',content:'Modernize my living room'},{role:'assistant',content:'I saved your new room concept.'}];
- for(const message of ['Make a list of materials and working steps so that i can start shopping and building it','Give me the bill of materials','Fais la liste des matériaux et les étapes des travaux','Find actual products for this design','What quantities do I need for this image?','What condition is the floor in?','Thanks']){
+ for(const message of ['Make a list of materials and working steps so that i can start shopping and building it','Give me the bill of materials','Give me the bill of materials for the new image','I want the bill of materials based on this image','Fais la liste des matériaux et les étapes des travaux','Find actual products for this design','What quantities do I need for this image?','What condition is the floor in?','Thanks']){
   assert.equal(isVisualRequest(message,history),false,message);
   assert.equal(skillTools({layout:false,products:false,paid:true,visuals:isVisualRequest(message,history)}).some(t=>t.name==='prepare_room_visual'),false);
  }

@@ -13,7 +13,9 @@ export function isVisualRequest(message:string,history:{role:string;content:stri
   const text=normalizedRequest(message);
   // Negative clauses are removed before considering a positive request elsewhere.
   const positive=text.replace(/\b(?:but|mais)\b/g,',').replace(/\b(?:don't|do not|no|without|sans|pas de|ne pas)\s+(?:(?:generate|generating|create|creating|make|show|want|need|a|an|any|the|un|une|de|generer|creer|faire|nouvelle?|nouveau|new|another|more)\s+)*(?:images?|photos?|visuals?|visuels?|concepts?|rendus?)\b[^.!?;,]*(?:[.!?;,]|$)/g,' ');
-  const explicit=/\b(?:generate|create|make|show|render|visualize|visualise|draw|see|want|like|veux|souhaite|aimerais|generer|creer|faire|montre\w*|voir|dessine\w*|visualise\w*)\b[^.!?;,]{0,75}\b(?:images?|photos?|visuals?|concepts?|renders?|renderings?|before.{0,5}after|visuels?|rendus?)\b|\b(?:new|another|updated|different|nouvelle?|autre|nouveau)\s+(?:images?|photos?|visuals?|concepts?|renders?|visuels?|rendus?)\b/.test(positive);
+  const explicit=/\b(?:generate|create|make|show|render|visualize|visualise|draw|see|want|like|give|veux|souhaite|aimerais|generer|creer|faire|montre\w*|voir|dessine\w*|visualise\w*)\b(?:(?!\b(?:bill|bom|materials?|quantities|instructions|steps|list|shopping|materiaux|materiels|quantites|etapes|travaux|liste)\b)[^.!?;,]){0,75}\b(?:images?|photos?|visuals?|concepts?|renders?|renderings?|before.{0,5}after|visuels?|rendus?)\b/.test(positive)
+    || /^(?:please\s+)?(?:(?:a|an|one|un|une)\s+)?(?:new|another|updated|different|nouvelle?|autre|nouveau)\s+(?:images?|photos?|visuals?|concepts?|renders?|visuels?|rendus?)(?:\s+please)?[.!?]*$/.test(positive.trim())
+    || /\b(?:and|also|et|aussi)\s+(?:(?:a|an|un|une)\s+)?(?:(?:new|nouveau|nouvelle)\s+)?(?:images?|visuals?|concepts?|renders?|visuels?|rendus?)\b/.test(positive);
   if(explicit)return true;
   const implementation=implementationRequest(positive);
   if(implementation.materials||implementation.construction||isProductSearchRequest(positive))return false;

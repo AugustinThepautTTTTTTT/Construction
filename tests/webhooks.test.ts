@@ -10,7 +10,13 @@ const payload = JSON.stringify({
   livemode: false,
   data: { object: { payment_status: "paid", livemode: false, metadata: {} } },
 });
-test("verified test event is accepted but altered and live payloads are rejected", () => {
+test("verified test event is accepted but altered and live payloads are rejected", (t) => {
+  const previousMode = process.env.STRIPE_MODE;
+  process.env.STRIPE_MODE = "test";
+  t.after(() => {
+    if (previousMode === undefined) delete process.env.STRIPE_MODE;
+    else process.env.STRIPE_MODE = previousMode;
+  });
   assert.equal(
     typeof mod.verifyTestEvent,
     "function",

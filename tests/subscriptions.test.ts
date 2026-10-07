@@ -5,7 +5,9 @@ import {PGlite} from '@electric-sql/pglite';
 import {SCHEMA} from '../lib/repository';
 import {creditAccount} from '../lib/credits';
 import {settleInvoice} from '../lib/subscriptions';
-test('verified recurring invoice credits are idempotent and cancelled subscriptions cannot be reactivated by delayed invoices',async()=>{
+test('verified recurring invoice credits are idempotent and cancelled subscriptions cannot be reactivated by delayed invoices',async(t)=>{
+ const previousMode=process.env.STRIPE_MODE;process.env.STRIPE_MODE='test';
+ t.after(()=>{if(previousMode===undefined)delete process.env.STRIPE_MODE;else process.env.STRIPE_MODE=previousMode;});
  const old=process.env.STRIPE_BASIC_PRICE_ID;process.env.STRIPE_BASIC_PRICE_ID='price_basic';const db=new PGlite(),owner=randomUUID();await db.exec(SCHEMA);await db.query('INSERT INTO roomwise.users(id,email,stripe_customer_id) VALUES($1,$2,$3)',[owner,'billing@test.com','cus_owned']);await creditAccount(db as any,owner);
  let status='active',amount=500,invoiceId='in_once',linePrice='price_basic',live=false;const stripe:any={subscriptions:{retrieve:async()=>({id:'sub_owned',customer:'cus_owned',livemode:live,status,metadata:{ownerId:owner},items:{data:[{price:{id:'price_basic'}}]}})},invoices:{retrieve:async()=>({id:invoiceId,livemode:live,status:'paid',currency:'usd',amount_paid:amount,billing_reason:'subscription_cycle',created:100,parent:{subscription_details:{subscription:'sub_owned'}},lines:{data:[{amount:500,quantity:1,pricing:{price_details:{price:linePrice}}}]}})}};
  assert.equal(await settleInvoice(db as any,stripe,'in_once'),true);assert.equal(await settleInvoice(db as any,stripe,'in_once'),false);assert.equal((await creditAccount(db as any,owner)).credits,40);

@@ -18,7 +18,7 @@ import { briefSchema } from "../lib/domain";
 import { runRoomTool } from "../lib/artifact-store";
 import { reserveAiCall } from "../lib/ai-budget";
 import { skillInstructions, skillTools } from "../lib/skill-registry";
-import { vettedPrices, retrievedUrls, priceResearchJsonSchema } from "../lib/price-research";
+import { vettedPrices, retrievedUrls, priceResearchJsonSchema, applyProductPacks } from "../lib/price-research";
 import {
   roomVisualPrompt,
   IMAGE_RESERVATION_CENTS,
@@ -368,4 +368,20 @@ test("2D plans render as safe vector geometry with dimensions and opening legend
   assert.match(html, /12.00 m²/);
   assert.match(html, /Door/);
   assert.doesNotMatch(html, /<script/);
+});
+
+test("real paint pots replace provisional litre pricing without inventing published coverage", () => {
+  const url = "https://www.castorama.fr/peinture-salle-de-bain/123456.html";
+  const findings = "Price: 39.90 EUR. Pot: 2.5 litres.";
+  const product = {index:1,price:39.9,url,title:"Bathroom paint 2.5 L",currency:"EUR",unit:"pot",note:"Washable bathroom paint",sourceEvidence:"Price: 39.90 EUR",coveragePerUnit:null,coverageEvidence:null,quantityPerPack:2.5,packEvidence:"Pot: 2.5 litres"};
+  const sources = vettedPrices({products:[product]},estimate,new Set([url]),findings);
+  assert.equal(sources.length,1);
+  const updated = applyProductPacks(estimate,sources);
+  assert.equal(updated.items[1].unit,"pot");
+  assert.equal(updated.items[1].coveragePerUnit,25);
+  assert.equal(updated.items[1].priceLow,39.9);
+  assert.match(sources[0].note,/provisional/);
+  assert.equal(vettedPrices({products:[{...product,packEvidence:"Pot: 5 litres"}]},estimate,new Set([url]),findings).length,0);
+  assert.equal(vettedPrices({products:[{...product,unit:"m2"}]},estimate,new Set([url]),findings).length,0);
+  assert.ok(priceResearchJsonSchema().properties.products.items.required.includes("quantityPerPack"));
 });

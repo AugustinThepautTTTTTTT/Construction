@@ -33,7 +33,7 @@ export function ChatArtifact({ id, artifact: shared, unlocked, onOpen, onChanged
   }
   if (!artifact) return <div className="chatArtifactLoading" role="status">{notice || "Preparing your project item…"}</div>;
   if (artifact.kind === "plan") return <RoomArtifact id={id} />;
-  if (artifact.kind === "estimate") return <ChatBill artifact={artifact} onOpen={onOpen} />;
+  if (artifact.kind === "estimate") return <ChatBill artifact={artifact} onOpen={onOpen} onChanged={() => { onChanged(); if (!shared) void api(`/api/artifacts/${id}`).then(result => setSaved(result.artifact)); }} unlocked={unlocked} />;
   return <div className="chatVisualResult">
     {artifact.hasImage ? <ChatVisual artifact={artifact} /> : <div className="chatVisualPending" role="status"><ImageIcon size={25} /><strong>{artifact.status === "failed" ? "Your concept was interrupted" : !unlocked ? "A Room Pass unlocks this concept" : "Creating your room concept…"}</strong><p>{artifact.data.generationError || "Your image will appear here automatically. You can keep chatting."}</p>{artifact.status === "failed" && unlocked && <Button disabled={busy} onClick={() => void retry()}>{busy ? "Retrying…" : "Retry concept"}</Button>}</div>}
     {notice && <p className="chatArtifactNotice" role="status">{notice}</p>}
@@ -56,7 +56,14 @@ export function ChatVisual({ artifact }: { artifact: Artifact }) {
   </figure>;
 }
 
-function ChatBill({ artifact, onOpen }: { artifact: Artifact; onOpen?: (id: string) => void }) {
+function ChatBill({ artifact, onOpen, onChanged, unlocked }: { artifact: Artifact; onOpen?: (id: string) => void; onChanged: () => void; unlocked: boolean }) {
+  const [searching, setSearching] = useState(false), [notice, setNotice] = useState("");
+  async function findProducts() {
+    setSearching(true); setNotice("");
+    try { await api(`/api/artifacts/${artifact.id}/prices`, {}); onChanged(); }
+    catch (e) { setNotice(e instanceof Error ? e.message : "Product search could not finish."); }
+    finally { setSearching(false); }
+  }
   const bill = materialPresentation(artifact), fmt = (value: number) => money(value, bill.currency), range = (low: number, high: number) => low === high ? fmt(low) : `${fmt(low)} – ${fmt(high)}`;
   return <section className="chatBill" aria-label="Bill of materials">
     <header><div className="chatBillEyebrow"><FileText size={14}/> Materials & shopping</div><h3>{artifact.data.title}</h3><p>{[artifact.data.city, artifact.data.country].filter(Boolean).join(", ")} · {bill.verifiedCount} of {bill.rows.length} products sourced</p></header>
@@ -67,6 +74,7 @@ function ChatBill({ artifact, onOpen }: { artifact: Artifact; onOpen?: (id: stri
     <div className="chatBillTotal"><span>Materials total<strong>{range(bill.low, bill.high)}</strong></span><p>{bill.rows.length > bill.verifiedCount ? `Includes ${range(bill.allowanceLow, bill.allowanceHigh)} in estimated allowances. ` : ""}{artifact.data.calculations?.provisional ? "Photo-based quantities are provisional. " : ""}Check pack sizes, current checkout prices and delivery.</p></div>
     {!!artifact.data.exclusions?.length && <details><summary>Assumptions & exclusions</summary><p>{artifact.data.exclusions.join(" · ")}</p>{artifact.data.assumptions?.map((s: string, i: number) => <p key={i}>{s}</p>)}</details>}
     {artifact.data.researchNotice && <p className="chatBillResearch">{artifact.data.researchNotice}</p>}
-    <footer><a href={`/api/artifacts/${artifact.id}/export`}><Download size={14}/>Download Excel</a>{onOpen && <Button onClick={() => onOpen(artifact.id)}>In your project <ArrowUpRight size={13}/></Button>}</footer>
+    <p role="status">{notice || (searching ? "Finding suitable retailer products and checking pack prices…" : "")}</p>
+    <footer>{unlocked && <Button disabled={searching} onClick={() => void findProducts()}>{searching ? "Finding products…" : bill.verifiedCount < bill.rows.length ? "Find products" : "Refresh products"}</Button>}<a href={`/api/artifacts/${artifact.id}/export`}><Download size={14}/>Download Excel</a>{onOpen && <Button onClick={() => onOpen(artifact.id)}>In your project <ArrowUpRight size={13}/></Button>}</footer>
   </section>;
 }

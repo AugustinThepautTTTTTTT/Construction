@@ -100,6 +100,8 @@ export type RoomPlan = z.infer<typeof planSchema> & { confirmed?: boolean };
 export type Estimate = z.infer<typeof estimateSchema>;
 export type Visual = z.infer<typeof visualSchema>;
 export type PriceSource = {
+  purchaseUnit?: string;
+  quantityPerPack?: number | null;
   coveragePerUnit?: number | null;
   evidence?: string;
   index: number;
@@ -215,7 +217,7 @@ export function validatePlan(plan: RoomPlan) {
   return metrics;
 }
 const retailers: Record<string, string[]> = {
-  FR: ["leroymerlin.fr", "castorama.fr", "ikea.com/fr"],
+  FR: ["leroymerlin.fr", "castorama.fr", "ikea.com/fr", "manomano.fr", "bricodepot.fr"],
   GB: ["diy.com", "wickes.co.uk", "ikea.com/gb"],
   CH: ["hornbach.ch", "jumbo.ch", "ikea.com/ch"],
   DE: ["hornbach.de", "bauhaus.info", "ikea.com/de"],

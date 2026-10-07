@@ -64,12 +64,16 @@ export function skillTools(options?: {
   hasBill?: boolean;
   paid?: boolean;
   visuals?: boolean;
+  materials?: boolean;
+  construction?: boolean;
 }) {
   return specs
     .filter(
       (s) =>
         (options?.paid !== false || s.name === "prepare_room_visual") &&
         (options?.visuals !== false || s.name !== "prepare_room_visual") &&
+        (options?.materials !== false || s.name !== "create_material_estimate") &&
+        (options?.construction !== false || s.name !== "create_construction_plan") &&
         (options?.layout !== false || s.name !== "update_room_cad") &&
         (options?.products !== false || s.name !== "search_material_product") &&
         (!(options?.products && options?.hasBill) ||

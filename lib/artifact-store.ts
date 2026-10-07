@@ -21,10 +21,12 @@ export async function runRoomTool(
   projectId: string,
   name: string,
   args: unknown,
-  options?: { productSearch?: boolean; visuals?: boolean },
+  options?: { productSearch?: boolean; visuals?: boolean; revisionSourceId?: string; materials?: boolean; construction?: boolean; layout?: boolean },
 ) {
+  if(name==='search_material_product'&&options?.productSearch===false) throw new ProductSearchError('Product research was not requested, or this turn already saved a comparison.');
   if(name==='prepare_room_visual'&&options?.visuals===false)
     throw new Error('This request is for materials or work instructions. Save those requested deliverables; do not create an image.');
+  if ((name === 'create_material_estimate' && options?.materials === false) || (name === 'create_construction_plan' && options?.construction === false) || (name === 'update_room_cad' && options?.layout === false)) throw new Error('This deliverable was not requested for the current turn.');
   const owned = await db.query(
     "SELECT id FROM roomwise.projects WHERE id=$1 AND user_id=$2",
     [projectId, owner],
@@ -118,7 +120,13 @@ export async function runRoomTool(
     if (!photo.rows.length)
       throw new Error("Choose an original photo uploaded to this room.");
     kind = "visual";
-    data = visual;
+    let revisionSourceId: string | undefined;
+    if (options?.revisionSourceId) {
+      const source = await db.query("SELECT id FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='visual' AND image IS NOT NULL AND data->>'sourcePhotoId'=$4",[options.revisionSourceId,projectId,owner,visual.sourcePhotoId]);
+      if (!source.rows.length) throw new Error("The previous concept is unavailable for this room photo. Do not start over.");
+      revisionSourceId = source.rows[0].id;
+    }
+    data = {...visual, ...(options?.visuals === true ? {visualAuthorized:true} : {}), ...(revisionSourceId ? {revisionSourceId} : {})};
   } else if (name === "create_material_estimate") {
     const estimate = estimateSchema.parse(args);
 

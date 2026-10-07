@@ -19,6 +19,7 @@ export function isVisualRequest(message:string,history:{role:string;content:stri
   if(explicit)return true;
   const implementation=implementationRequest(positive);
   if(implementation.materials||implementation.construction||isProductSearchRequest(positive))return false;
+  if (/\b(?:montre\w*|voir|visualise\w*|show|visualize|visualise)\b[^.!?;,]{0,70}\b(?:renovation|renovated|renove\w*|refurbishment)\b/.test(positive) && !/\b(?:sans|pas|no|without|do not|don't)\b/.test(text)) return true;
   if(/\b(?:condition|damage|cracks?|mould|mold|damp|diagnos\w*|etat|humidite|moisissure)\b/.test(positive))return false;
   if(/\b(?:no|without|sans|pas de|don't|do not|ne pas)\b[^.!?;,]{0,45}\b(?:images?|visuals?|visuels?|photos?|concepts?|rendus?)\b/.test(text))return false;
   // A new design request can create a concept; existing photographs or old

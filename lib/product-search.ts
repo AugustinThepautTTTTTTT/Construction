@@ -1,7 +1,7 @@
 import type OpenAI from "openai";
 import { retailerDomains, type Estimate } from "./room-artifacts";
 type SearchRequest = OpenAI.Responses.ResponseCreateParamsNonStreaming & {max_tool_calls: number};
-export const PRICE_RESEARCH_VERSION = 3;
+export const PRICE_RESEARCH_VERSION = 4;
 export function productSearchRequest(estimate: Estimate, index: number | number[], model: string): SearchRequest {
   const domains=retailerDomains(estimate.country);
   return {model,reasoning:{effort:"low"},service_tier:"default",store:false,max_output_tokens:Array.isArray(index)?3500:1700,max_tool_calls:Array.isArray(index)?6:2,

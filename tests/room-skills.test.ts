@@ -380,6 +380,7 @@ test("real paint pots replace provisional litre pricing without inventing publis
   const sources = vettedPrices({products:[product]},estimate,new Set([url]),findings);
   assert.equal(sources.length,1);
   const updated = applyProductPacks(estimate,sources);
+  assert.equal(vettedPrices({products:[{...product,packEvidence:"Pot: 2,5L"}]},estimate,new Set([url]),"Price: 39.90 EUR. Pot: 2,5L.").length,1);
   assert.equal(updated.items[1].unit,"pot");
   assert.equal(updated.items[1].coveragePerUnit,25);
   assert.equal(updated.items[1].priceLow,39.9);

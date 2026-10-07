@@ -478,7 +478,7 @@ export default function ChatPage() {
           ) : confirming ? (
             "Confirming your payment…"
           ) : busy ? (
-            progress || "Preparing your reply…"
+            "Preparing your reply…"
           ) : unlocked ? (
             "Room Pass active"
           ) : (

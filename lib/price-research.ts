@@ -15,7 +15,7 @@ export const priceResearchSchema = z
             url: z.string().url(),
             title: z.string().max(200),
             currency: z.string().regex(/^[A-Z]{3}$/),
-            unit: z.string().max(30),
+            unit: z.enum(["pot","pack","bag","bottle","piece","roll","box","litre","l","m2","kg","m","set"]),
             note: z.string().max(500),
             sourceEvidence: z.string().min(1).max(300),
             coveragePerUnit: z.number().positive().nullable(),
@@ -57,7 +57,7 @@ export function normalizedUnit(unit: string) {
   return aliases[value] || value;
 }
 function packContainsUnit(evidence: string, unit: string) {
-  const patterns: Record<string, RegExp> = {l:/\b(?:l|litres?|liters?)\b/i,kg:/\b(?:kg|kilogram(?:me)?s?)\b/i,m2:/(?:m²|m2|square metres?|square meters?)/i,m:/\b(?:m|metres?|meters?)\b/i,piece:/\b(?:pieces?|pièces?|units?)\b/i,pack:/\b(?:packs?|paquets?)\b/i,bottle:/\b(?:bottles?|bouteilles?)\b/i};
+  const patterns: Record<string, RegExp> = {l:/(?:^|[^a-z])(?:l|litres?|liters?)(?:$|[^a-z])/i,kg:/(?:^|[^a-z])(?:kg|kilogram(?:me)?s?)(?:$|[^a-z])/i,m2:/(?:m²|m2|square metres?|square meters?)/i,m:/\b(?:m|metres?|meters?)\b/i,piece:/\b(?:pieces?|pièces?|units?)\b/i,pack:/\b(?:packs?|paquets?)\b/i,bottle:/\b(?:bottles?|bouteilles?)\b/i};
   return patterns[normalizedUnit(unit)]?.test(evidence) || false;
 }
 export function vettedPrices(
@@ -87,7 +87,16 @@ export function vettedPrices(
       (product.coveragePerUnit !== null && (!product.coverageEvidence || !findings.includes(product.coverageEvidence) || !containsAmount(product.coverageEvidence, product.coveragePerUnit))) ? "coverage_evidence" :
       /(?:search|recherche|category|categories)(?:[/?-]|$)/i.test(url.pathname) || url.pathname === "/" ? "category_url" :
       (domains.length && !domains.some(domain=>url.hostname === domain || url.hostname.endsWith("." + domain))) ? "retailer_domain" : null;
-    if(rejected){if(diagnostics)diagnostics[rejected]=(diagnostics[rejected]||0)+1;return [];}
+    if(rejected){
+      if(diagnostics){
+        diagnostics[rejected]=(diagnostics[rejected]||0)+1;
+        if(rejected==="pack_unit"){
+          const detail=!product.quantityPerPack?"pack_amount_missing":!product.packEvidence?"pack_quote_missing":!findings.includes(product.packEvidence)?"pack_quote_unretrieved":!packContainsUnit(product.packEvidence,item.unit)?"pack_original_unit_missing":!containsAmount(product.packEvidence,product.quantityPerPack)?"pack_amount_unverified":"unsupported_purchase_unit";
+          diagnostics[detail]=(diagnostics[detail]||0)+1;
+        }
+      }
+      return [];
+    }
     seen.add(product.index);
     return [
       {

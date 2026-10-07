@@ -66,10 +66,11 @@ export function vettedPrices(
   urls: Set<string>,
   findings: string,
   diagnostics?: Record<string,number>,
+  options?: { openRetailers?:boolean; allowAlternatives?:boolean },
 ): PriceSource[] {
   const parsed = priceResearchSchema.parse(raw),
-    domains = retailerDomains(estimate.country);
-  const seen = new Set<number>();
+    domains = options?.openRetailers ? [] : retailerDomains(estimate.country);
+  const seen = new Set<string>();
   return parsed.products.flatMap((product) => {
     const item = estimate.items[product.index];
     let url: URL;
@@ -78,8 +79,8 @@ export function vettedPrices(
     } catch {
       return [];
     }
-    const rejected = !item ? "index" : seen.has(product.index) ? "duplicate" :
-      url.protocol !== "https:" || url.username || url.password ? "unsafe_url" :
+    const rejected = !item ? "index" : seen.has(options?.allowAlternatives ? product.url : String(product.index)) ? "duplicate" :
+      url.protocol !== "https:" || url.username || url.password || /^(?:localhost|127\.|10\.|192\.168\.|169\.254\.|\[)/i.test(url.hostname) ? "unsafe_url" :
       !urls.has(product.url) ? "unretrieved_url" :
       product.currency !== estimate.currency ? "currency" :
       (normalizedUnit(product.unit) !== normalizedUnit(item.unit) && (!product.quantityPerPack || !["pot","pack","bag","bottle","piece","roll","box"].includes(normalizedUnit(product.unit)) || !product.packEvidence || !findings.includes(product.packEvidence) || !packContainsUnit(product.packEvidence,item.unit) || !containsAmount(product.packEvidence,product.quantityPerPack))) ? "pack_unit" :
@@ -97,7 +98,7 @@ export function vettedPrices(
       }
       return [];
     }
-    seen.add(product.index);
+    seen.add(options?.allowAlternatives ? product.url : String(product.index));
     return [
       {
         index: product.index,

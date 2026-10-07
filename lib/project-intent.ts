@@ -6,3 +6,7 @@ export function isLayoutRequest(message:string,hasCad=false){
  || /\b(where.{0,25}(put|place)|où.{0,25}(mettre|placer))\b/.test(text)
  || (hasCad&&/\b(rotate|rotation|resize|widen|wider|narrower|lengthen|shift|move (it|this|that)|turn.{0,15}degrees|agrandir|redimensionner|pivoter)\b/.test(text));
 }
+
+export function isProductSearchRequest(text:string){
+ return /\b(?:find|search|compare|shop for|look for|look up|where.{0,20}buy|trouv\w*|cherch\w*|recherch\w*|compar\w*|où.{0,20}achet\w*|fournisseur|supplier|retailer|product links?|shopping alternatives|different.{0,25}(?:products|paints|flooring)|online.{0,15}(?:shop|product)|internet)\b/i.test(text);
+}

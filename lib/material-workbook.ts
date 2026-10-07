@@ -8,7 +8,7 @@ import {
   type PriceSource,
 } from "./room-artifacts";
 export async function materialWorkbook(
-  data: Estimate & { plan?: RoomPlan; priceSources?: PriceSource[] },
+  data: Estimate & { plan?: RoomPlan; priceSources?: PriceSource[];productComparisons?:Record<string,any>;shoppingChecked?:Record<string,boolean> },
 ) {
   const calculated = calculateEstimate(data, data.plan || null),
     workbook = new ExcelJS.Workbook();
@@ -133,5 +133,15 @@ export async function materialWorkbook(
     "Quantity method",
     "basis × coats × (1 + waste); divide by coverage per purchased unit and round up where supplied. Wall area subtracts openings only where their height is known.",
   ]);
+  if(data.measurements){
+    assumptions.addRow(["Surface measurements",JSON.stringify(data.measurements)]);
+  }
+  if(data.productComparisons){
+    const comparison=workbook.addWorksheet("Product comparisons");
+    comparison.columns=[{header:"Bill item",width:30},{header:"Product",width:50},{header:"Pack price",width:18},{header:"Purchase unit",width:18},{header:"Link",width:60},{header:"Checked",width:25},{header:"Suitability / limitations",width:70},{header:"Selected",width:15}];
+    for(const [index,options] of Object.entries(data.productComparisons))for(const product of options.products||[])comparison.addRow([data.items[Number(index)]?.item,product.title,product.price,product.purchaseUnit,{text:product.url,hyperlink:product.url},product.checkedAt,product.note,data.priceSources?.some(source=>source.index===Number(index)&&source.url===product.url)?"Yes":""]);
+  }
+  const shopping=workbook.addWorksheet("Shopping checklist");shopping.columns=[{header:"Item",width:30},{header:"Quantity",width:15},{header:"Unit",width:15},{header:"Ready / owned",width:18},{header:"Product link",width:60}];
+  for(const row of presentation.rows)shopping.addRow([row.item,row.quantity,row.unit,data.shoppingChecked?.[row.index]?"Yes":"",row.source?{text:row.source.title,hyperlink:row.source.url}:"Allowance"]);
   return new Uint8Array(await workbook.xlsx.writeBuffer());
 }

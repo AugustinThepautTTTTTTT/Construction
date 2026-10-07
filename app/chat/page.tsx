@@ -1,5 +1,6 @@
 "use client";
 import "./chat.css";
+import "@/components/project-workspace.css";
 import "@/components/chat-artifact.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
@@ -39,6 +40,7 @@ export default function ChatPage() {
   const [cap, setCap] = useState(initial),
     [projects, setProjects] = useState<Project[]>([]),
     [active, setActive] = useState("");
+  const [projectWidth,setProjectWidth]=useState(380);
   const [projectSignal,setProjectSignal]=useState(0),[panelFocus,setPanelFocus]=useState<ProjectTab>("visuals"),[projectPanelOpen,setProjectPanelOpen]=useState(false),[highlight,setHighlight]=useState<ProjectHighlight>(null),[cadDirty,setCadDirty]=useState(false);
   const [projectAssets,setProjectAssets]=useState<{id:string;artifacts:Artifact[]}>({id:"",artifacts:[]});
   const receiveArtifacts=useCallback((id:string,artifacts:Artifact[])=>setProjectAssets({id,artifacts}),[]);
@@ -72,7 +74,7 @@ export default function ChatPage() {
   const unlocked = Boolean(cap.user?.pro_active || project?.paid);
   useEffect(()=>{setSidebar(window.matchMedia("(min-width:1101px)").matches);},[]);
   useEffect(()=>{const el=composer.current;if(!el)return;el.style.height="0px";el.style.height=`${Math.min(180,Math.max(28,el.scrollHeight))}px`;},[input,empty]);
-  const openArtifact=useCallback((id:string)=>{if(cadDirty){setNotice("Save or discard your layout edits first.");return;}setHighlight(prev=>({id,version:(prev?.version||0)+1}));setProjectPanelOpen(true);setProjectSignal(s=>s+1);},[cadDirty]);
+  const openArtifact=useCallback((id:string)=>{if(cadDirty){setNotice("Save or discard your layout edits first.");return;}setHighlight(prev=>({id,version:(prev?.version||0)+1}));setSidebar(false);setProjectPanelOpen(true);setProjectSignal(s=>s+1);},[cadDirty]);
   async function refresh() {
     const [session, data] = await Promise.all([
       api("/api/session"),
@@ -503,7 +505,7 @@ export default function ChatPage() {
     </form>
   );
   return (
-    <main className={`workspace cleanWorkspace projectWorkspace chatKit ${sidebar?"historyVisible":""} ${project?"withProject":""} ${project&&projectPanelOpen?"projectVisible":""}`}>
+    <main style={{"--project-width":`${projectWidth}px`} as import("react").CSSProperties} className={`workspace cleanWorkspace projectWorkspace chatKit ${sidebar?"historyVisible":""} ${project?"withProject":""} ${project&&projectPanelOpen?"projectVisible":""}`}>
       {sidebar && (
         <Button
           className="historyBackdrop"
@@ -575,7 +577,7 @@ export default function ChatPage() {
           </Button>
           <span className="chatHeaderTitle">Roomwise</span>
           <div className="workspaceActions">
-            {project&&<Button className="openProject" aria-label={projectPanelOpen?"Collapse project panel":"Open project panel"} aria-expanded={projectPanelOpen} aria-controls="roomwise-project" onClick={()=>{if(projectPanelOpen&&cadDirty){setNotice("Save or discard your layout edits before closing the project.");return;}setProjectPanelOpen(!projectPanelOpen);}}><FolderOpen size={16}/><span>Your project</span></Button>}
+            {project&&<Button className="openProject" aria-label={projectPanelOpen?"Collapse project panel":"Open project panel"} aria-expanded={projectPanelOpen} aria-controls="roomwise-project" onClick={()=>{if(projectPanelOpen&&cadDirty){setNotice("Save or discard your layout edits before closing the project.");return;}if(!projectPanelOpen)setSidebar(false);setProjectPanelOpen(!projectPanelOpen);}}><FolderOpen size={16}/><span>Your project</span></Button>}
             {!empty && (
               <Button onClick={download} aria-label="Download plan">
                 <Download size={16} />
@@ -653,7 +655,7 @@ export default function ChatPage() {
           work.
         </p>
       </section>
-      {project&&<ProjectPanel key={project.id} projectId={project.id} signal={projectSignal} focus={panelFocus} highlight={highlight} mobileOpen={projectPanelOpen} busy={busy} unlocked={unlocked} onArtifacts={receiveArtifacts} onDirtyChange={setCadDirty} onClose={()=>setProjectPanelOpen(false)} onAsk={text=>{setInput(text);setSidebar(false);setProjectPanelOpen(false);composer.current?.focus();}}/>}
+      {project&&<ProjectPanel key={project.id} projectId={project.id} width={projectWidth} onWidth={setProjectWidth} signal={projectSignal} focus={panelFocus} highlight={highlight} mobileOpen={projectPanelOpen} busy={busy} unlocked={unlocked} onArtifacts={receiveArtifacts} onDirtyChange={setCadDirty} onClose={()=>setProjectPanelOpen(false)} onAsk={text=>{setInput(text);setSidebar(false);setProjectPanelOpen(false);composer.current?.focus();}}/>}
     </main>
   );
 }

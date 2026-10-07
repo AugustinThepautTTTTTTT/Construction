@@ -61,16 +61,25 @@ export const visualSchema = z
     changes: z.array(z.string().max(180)).min(1).max(12),
   })
   .strict();
+export const measurementsSchema=z.object({
+  floorArea:z.number().positive().max(1500).nullable(),
+  wallArea:z.number().positive().max(10000).nullable(),
+  ceilingArea:z.number().positive().max(1500).nullable(),
+  perimeter:z.number().positive().max(1000).nullable(),
+  confirmed:z.boolean(),notes:z.string().max(1000),
+}).strict();
 export const estimateSchema = z
   .object({
     title: z.string().max(120),
     country: z.string().regex(/^[A-Z]{2}$/),
     city: z.string().max(100),
     currency: z.string().regex(/^[A-Z]{3}$/),
+    measurements: measurementsSchema.nullable().optional(),
     items: z
       .array(
         z
           .object({
+            category:z.enum(["preparation","finishes","furniture","tools","consumables"]).nullable().optional(),
             item: z.string().max(100),
             specification: z.string().max(250),
             basis: z.enum([
@@ -246,21 +255,23 @@ export function shoppingLinks(country: string, city: string, item: string) {
 }
 export function calculateEstimate(estimate: Estimate, plan: RoomPlan | null) {
   const metrics = plan ? roomMetrics(plan) : null;
+  const measured=estimate.measurements;
   const items = estimate.items.map((item, index) => {
     if (item.priceHigh < item.priceLow)
       throw new Error("A price range is reversed.");
     let base: number | null = item.manualQuantity;
     if (item.basis === "floor_area" || item.basis === "ceiling_area")
-      base = metrics?.area ?? item.manualQuantity;
-    if (item.basis === "wall_area") base = metrics?.wallArea ?? item.manualQuantity;
-    if (item.basis === "perimeter") base = metrics?.perimeter ?? item.manualQuantity;
+      base = (item.basis === "floor_area" ? measured?.floorArea : measured?.ceilingArea) ?? metrics?.area ?? item.manualQuantity;
+    if (item.basis === "wall_area") base = measured?.wallArea ?? metrics?.wallArea ?? item.manualQuantity;
+    if (item.basis === "perimeter") base = measured?.perimeter ?? metrics?.perimeter ?? item.manualQuantity;
     if (base === null)
       throw new Error(`Measurements are missing for ${item.item}.`);
+    if(base<=0)throw new Error(`A positive quantity is required for ${item.item}.`);
     const required = base * item.coats * (1 + item.waste);
     const quantity =
       item.coveragePerUnit !== null
         ? Math.ceil(required / item.coveragePerUnit)
-        : Math.ceil(required * 100) / 100;
+        : ["piece","pack","pot","roll","bag","bottle","box","set"].includes(item.unit.toLowerCase()) ? Math.ceil(required) : Math.ceil(required * 100) / 100;
     return {
       ...item,
       index,
@@ -280,6 +291,6 @@ export function calculateEstimate(estimate: Estimate, plan: RoomPlan | null) {
     items,
     low: Math.round(items.reduce((n, i) => n + i.low, 0) * 100) / 100,
     high: Math.round(items.reduce((n, i) => n + i.high, 0) * 100) / 100,
-    provisional: !plan?.confirmed,
+    provisional: measured ? !measured.confirmed || items.some(item=>item.basis!=="manual" && ({floor_area:measured.floorArea,wall_area:measured.wallArea,ceiling_area:measured.ceilingArea,perimeter:measured.perimeter}[item.basis] == null) && !plan?.confirmed) : !plan?.confirmed,
   };
 }

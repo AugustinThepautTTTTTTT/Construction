@@ -1,7 +1,6 @@
 import { cadUpdateSchema, cadPlan } from "./cad/model";
 import { getCad, saveCad } from "./cad/store";
-import OpenAI from "openai";
-import { researchMaterialPrices } from "./material-research";
+import { searchMaterialProduct, productLookupSchema } from "./material-research";
 import { randomUUID } from "node:crypto";
 import type { Queryable } from "./repository";
 import {
@@ -23,6 +22,13 @@ export async function runRoomTool(
     [projectId, owner],
   );
   if (!owned.rows.length) throw new Error("Room not found.");
+  if (name === "search_material_product") {
+    const lookup=productLookupSchema.parse(args);
+    const bill=await db.query("SELECT id,data FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",[lookup.estimateId,projectId,owner]);
+    if(!bill.rows.length)throw new Error("Choose a material bill from this room.");
+    const comparison=await searchMaterialProduct(db,owner,lookup.estimateId,bill.rows[0].data,lookup.index,lookup.preferences);
+    return {id:lookup.estimateId,kind:"estimate",products:comparison.products,summary:"Product comparison saved for the requested item. The user can compare packs, quantities, prices and links, then choose a product in Materials. Do not claim an entire basket was researched."};
+  }
   if (name === "update_room_cad") {
     const {model,baseRevision,changeSummary} = cadUpdateSchema.parse(args);
     const current = await getCad(db,owner,projectId);
@@ -76,22 +82,15 @@ export async function runRoomTool(
     [id, owner, projectId, kind, JSON.stringify(data)],
   );
   if(kind === "visual")await db.query("UPDATE roomwise.artifacts SET status='queued' WHERE id=$1 AND user_id=$2",[id,owner]);
-  let products: unknown[] = [], researchNotice = "";
-  if (kind === "estimate") {
-    try { products = await researchMaterialPrices(db, owner, id, data); }
-    catch (e) { console.error("Roomwise automatic price research failed", {status: e instanceof OpenAI.APIError ? e.status : undefined, code: e instanceof OpenAI.APIError ? e.code : undefined, param: e instanceof OpenAI.APIError ? e.param : undefined}); researchNotice = "Provider prices could not be verified. These are estimated allowances, not product quotes."; }
-    if (researchNotice) await db.query("UPDATE roomwise.artifacts SET data=data || $1::jsonb WHERE id=$2 AND user_id=$3", [JSON.stringify({researchNotice}), id, owner]);
-  }
   return {
     id,
-    products,
-    researchNotice,
+    products: [],
     kind,
     summary:
       kind === "construction"
         ? "Construction checklist saved, linked to the bill rows. The app shows the ordered steps, materials, tools and supplier links directly in chat and in the project Construction plan folder. Provide only a short polished introduction."
         : kind === "estimate"
-          ? "Bill saved with quantities and Excel export. Only products in products have verified provider links/prices; all other lines are estimated allowances. Discuss unmatched items instead of claiming a fully sourced basket."
+          ? "Bill saved with quantities, estimated allowances and Excel export. No internet search has run. Product search is an optional advanced capability for ONE item explicitly requested by the user."
           : "Before/after design saved and queued. The application automatically starts one image edit for eligible paid accounts and shows it directly in chat and also saves it in the project visual folder. Do not say it is finished yet.",
   };
 }

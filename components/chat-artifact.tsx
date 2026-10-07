@@ -5,6 +5,7 @@ import { ArrowUpRight, Download, FileText, Image as ImageIcon } from "lucide-rea
 import { api } from "@/lib/browser-storage";
 import { materialPresentation, money, retailerName } from "@/lib/material-presentation";
 import type { Artifact } from "@/lib/room-artifacts";
+import {ProductComparisonView} from "./product-comparison";
 import { ConstructionPlanView } from "./construction-plan";
 
 export function ChatArtifact({ id, artifact: shared, unlocked, onOpen, onChanged }: {
@@ -58,16 +59,9 @@ export function ChatVisual({ artifact }: { artifact: Artifact }) {
 }
 
 function ChatBill({ artifact, onOpen, onChanged, unlocked }: { artifact: Artifact; onOpen?: (id: string) => void; onChanged: () => void; unlocked: boolean }) {
-  const [searching, setSearching] = useState(false), [notice, setNotice] = useState("");
-  async function findProducts() {
-    setSearching(true); setNotice("");
-    try { await api(`/api/artifacts/${artifact.id}/prices`, {}); onChanged(); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Product search could not finish."); }
-    finally { setSearching(false); }
-  }
   const bill = materialPresentation(artifact), fmt = (value: number) => money(value, bill.currency), range = (low: number, high: number) => low === high ? fmt(low) : `${fmt(low)} – ${fmt(high)}`;
   return <section className="chatBill" aria-label="Bill of materials">
-    <header><div className="chatBillEyebrow"><FileText size={14}/> Materials & shopping</div><h3>{artifact.data.title}</h3><p>{[artifact.data.city, artifact.data.country].filter(Boolean).join(", ")} · {bill.verifiedCount} of {bill.rows.length} products sourced</p></header>
+    <header><div className="chatBillEyebrow"><FileText size={14}/> Materials & shopping</div><h3>{artifact.data.title}</h3><p>{[artifact.data.city, artifact.data.country].filter(Boolean).join(", ")} · {bill.rows.length} materials · {bill.verifiedCount ? `${bill.verifiedCount} selected products` : "estimated costs"}</p></header>
     <div className="chatBillRows">{bill.rows.map((row: any) => <article key={row.index}>
       <div><h4>{row.item}</h4><p>{row.source?.title || row.specification}</p>{row.source ? <a href={row.source.url} target="_blank" rel="noopener noreferrer">{retailerName(row.source.url)} <ArrowUpRight size={12}/></a> : <small>Estimated allowance · no verified product yet</small>}</div>
       <div className="chatBillPrice"><strong>{row.source ? fmt(row.subtotal) : range(row.low, row.high)}</strong><span>{row.quantity} {row.unit} {row.source ? `× ${fmt(row.source.price)}` : ""}</span></div>
@@ -75,7 +69,7 @@ function ChatBill({ artifact, onOpen, onChanged, unlocked }: { artifact: Artifac
     <div className="chatBillTotal"><span>Materials total<strong>{range(bill.low, bill.high)}</strong></span><p>{bill.rows.length > bill.verifiedCount ? `Includes ${range(bill.allowanceLow, bill.allowanceHigh)} in estimated allowances. ` : ""}{artifact.data.calculations?.provisional ? "Photo-based quantities are provisional. " : ""}Check pack sizes, current checkout prices and delivery.</p></div>
     {!!artifact.data.exclusions?.length && <details><summary>Assumptions & exclusions</summary><p>{artifact.data.exclusions.join(" · ")}</p>{artifact.data.assumptions?.map((s: string, i: number) => <p key={i}>{s}</p>)}</details>}
     {artifact.data.researchNotice && <p className="chatBillResearch">{artifact.data.researchNotice}</p>}
-    <p role="status">{notice || (searching ? "Finding suitable retailer products and checking pack prices…" : "")}</p>
-    <footer>{unlocked && <Button disabled={searching} onClick={() => void findProducts()}>{searching ? "Finding products…" : bill.verifiedCount < bill.rows.length ? "Find products" : "Refresh products"}</Button>}<a href={`/api/artifacts/${artifact.id}/export`}><Download size={14}/>Download Excel</a>{onOpen && <Button onClick={() => onOpen(artifact.id)}>In your project <ArrowUpRight size={13}/></Button>}</footer>
+    {artifact.data.lastProductSearchIndex!=null&&<ProductComparisonView artifact={artifact} index={artifact.data.lastProductSearchIndex} onChanged={onChanged} unlocked={unlocked}/>}
+    <footer><a href={`/api/artifacts/${artifact.id}/export`}><Download size={14}/>Download Excel</a>{onOpen && <Button onClick={() => onOpen(artifact.id)}>Review quantities & products <ArrowUpRight size={13}/></Button>}</footer>
   </section>;
 }

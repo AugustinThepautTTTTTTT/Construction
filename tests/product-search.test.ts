@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type OpenAI from "openai";
-import { productSearchRequest, runProductSearch, reusableProductResearch, PRICE_RESEARCH_VERSION, productSearchGroups, needsAutomaticProducts } from "../lib/product-search";
+import { productSearchRequest, runProductSearch, reusableComparison } from "../lib/product-search";
+import {vettedPrices} from "../lib/price-research";
 import { estimateSchema } from "../lib/room-artifacts";
 const estimate=estimateSchema.parse({title:"Bathroom",country:"FR",city:"Mulhouse",currency:"EUR",items:[{item:"Wall paint",specification:"Bathroom washable warm white",basis:"manual",manualQuantity:1,unit:"litre",coveragePerUnit:null,coats:1,waste:0,priceLow:15,priceHigh:35}],assumptions:[],exclusions:[]});
 test("product searches target the material and local retailers on Luna with bounded calls",()=>{
   const request=productSearchRequest(estimate,0,"gpt-6-luna");
-  assert.equal(request.model,"gpt-6-luna");assert.equal(request.max_tool_calls,2);
-  assert.match(request.input as string,/Mulhouse/);assert.match(request.instructions!,/actual pack price/);
+  assert.equal(request.model,"gpt-6-luna");assert.equal(request.max_tool_calls,3);
+  assert.match(request.input as string,/Mulhouse/);assert.match(request.instructions!,/actual pack price/);assert.equal((request.tools![0] as any).filters,undefined);assert.match(request.instructions!,/different suitable retailers/);
   assert.equal(request.tool_choice,"required");
 });
 test("rejected search schemas retry once with preview; paid or transient failures do not retry",async()=>{
@@ -20,20 +21,25 @@ test("rejected search schemas retry once with preview; paid or transient failure
     await assert.rejects(runProductSearch(failing,request));assert.equal(count,1);
   }
 });
-test("empty, old-version, partial and stale bills can search again",()=>{
-  const data={items:[{}],priceSources:[{}],pricesCheckedAt:new Date().toISOString(),priceResearchVersion:PRICE_RESEARCH_VERSION};
-  assert.equal(reusableProductResearch(data),true);
-  assert.equal(reusableProductResearch({...data,priceSources:[]}),false);
-  assert.equal(reusableProductResearch({...data,priceResearchVersion:1}),false);
-  assert.equal(reusableProductResearch({...data,items:[{},{}]}),false);
-  assert.equal(reusableProductResearch({...data,pricesCheckedAt:"2020-01-01"}),false);
+test("only a fresh successful comparison of the same requested item and preferences is reused",()=>{
+ const data={index:0,preferences:"blue",products:[{}],checkedAt:new Date().toISOString()};
+ assert.equal(reusableComparison(data,0,"blue"),true);
+ assert.equal(reusableComparison({...data,products:[]},0,"blue"),false);
+ assert.equal(reusableComparison(data,1,"blue"),false);
+ assert.equal(reusableComparison(data,0,"white"),false);
+ assert.equal(reusableComparison({...data,checkedAt:"2020-01-01"},0,"blue"),false);
 });
 
-test("automatic sourcing includes every row of a complete bill without an endless retry loop",()=>{
-  assert.deepEqual(productSearchGroups(9),[[0,1,2,3],[4,5,6,7],[8]]);
-  assert.equal(productSearchGroups(40).flat().length,40);
-  assert.equal(needsAutomaticProducts({priceSources:[]}),true);
-  assert.equal(needsAutomaticProducts({priceResearchAttemptVersion:PRICE_RESEARCH_VERSION}),false);
-  assert.equal(needsAutomaticProducts({priceResearchStatus:"running"}),false);
-  const request=productSearchRequest(estimate,[0],"gpt-6-luna");assert.equal(request.max_tool_calls,6);
+test("default bills never trigger automatic product sourcing; requests target one item",()=>{
+  assert.throws(()=>productSearchRequest(estimate,[0] as any,"gpt-6-luna"),/one material/);
+  const request=productSearchRequest(estimate,0,"gpt-6-luna","under 40 EUR");assert.match(request.input as string,/under 40 EUR/);
+});
+
+test("open-market comparisons retain multiple evidenced retailers, rejecting invented links and prices",()=>{
+ const first="https://www.tollens.com/products/blue",second="https://www.specialist-shop.fr/products/paint";
+ const product={index:0,price:20,url:first,title:"Blue paint",currency:"EUR",unit:"litre",note:"Washable finish",sourceEvidence:"20 EUR",coveragePerUnit:null,coverageEvidence:null};
+ const options={openRetailers:true,allowAlternatives:true};
+ const matches=vettedPrices({products:[product,{...product,url:second,title:"Alternative paint"}]},estimate,new Set([first,second]),"Price 20 EUR",undefined,options);assert.equal(matches.length,2);
+ assert.equal(vettedPrices({products:[{...product,url:"https://fake.test/product"}]},estimate,new Set([first]),"20 EUR",undefined,options).length,0);
+ assert.equal(vettedPrices({products:[{...product,price:99}]},estimate,new Set([first]),"20 EUR",undefined,options).length,0);
 });

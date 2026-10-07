@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { SITE, searchRobots, structuredData } from "@/lib/seo";
+import { SiteTelemetry } from "@/components/site-telemetry";
 import { Manrope, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
 
@@ -10,9 +12,13 @@ const serif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Roomwise — Your room, figured out",
-  description:
-    "AI room renovation and modernization: create photo concepts, assess material quantities, find products and build a connected refurbishment work plan.",
+  metadataBase: new URL(SITE.url),
+  title: { default: SITE.title, template: "%s | Archicova" },
+  applicationName: SITE.name,
+  description: SITE.description,
+  alternates: { canonical: "/" },
+  robots: searchRobots(),
+  icons: { icon: "/brand/favicon.png", apple: "/brand/apple-touch-icon.png" },
   keywords: [
     "AI room planner",
     "renovation plan",
@@ -20,11 +26,17 @@ export const metadata: Metadata = {
     "remodel budget", "home modernization", "room refurbishment", "renovation bill of materials", "furniture product finder",
   ],
   openGraph: {
-    title: "Roomwise — Your room, figured out",
-    description: "A practical plan for your next room, in minutes.",
+    title: SITE.title,
+    description: SITE.description,
+    siteName: SITE.name,
+    url: SITE.url,
+    locale: "en_US",
+    images: [{ url: "/brand/social.png", width: 1200, height: 630, alt: "Archicova — AI interior design and renovation planning" }],
     type: "website",
   },
+  twitter: { card: "summary_large_image", title: SITE.title, description: SITE.description, images: ["/brand/social.png"] },
 };
+export const viewport: Viewport = { themeColor: "#19251e" };
 
 export default function RootLayout({
   children,
@@ -33,6 +45,8 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${manrope.variable} ${serif.variable}`}>
         {children}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()).replace(/</g, "\\u003c") }} />
+        <SiteTelemetry />
       </body>
     </html>
   );

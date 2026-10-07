@@ -195,7 +195,7 @@ export function ChatVisual({ artifact }: { artifact: Artifact }) {
         </Button>
         <a
           href={concept}
-          download="roomwise-concept.jpg"
+          download="archicova-concept.jpg"
           aria-label="Download room concept"
         >
           <Download size={14} />

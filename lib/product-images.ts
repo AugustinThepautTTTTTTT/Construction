@@ -98,7 +98,7 @@ export async function fetchProductImage(
               else cb(null, address.address, address.family);
             }) as any,
             headers: {
-              "User-Agent": "Roomwise/1.0 product preview",
+              "User-Agent": "Archicova/1.0 product preview",
               Accept: "text/html",
             },
           },

@@ -13,7 +13,7 @@ export async function materialWorkbook(
   const calculated = calculateEstimate(data, data.plan || null),
     workbook = new ExcelJS.Workbook();
   const presentation=materialPresentation({data:{...data,calculations:calculated}} as Artifact);
-  workbook.creator = "Roomwise";
+  workbook.creator = "Archicova";
   workbook.created = new Date();
   const sheet = workbook.addWorksheet("Bill of materials", {
     views: [{ state: "frozen", ySplit: 4 }],

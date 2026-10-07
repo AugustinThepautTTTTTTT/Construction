@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { BrandMark } from "@/components/brand-mark";
+import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/browser-storage";
@@ -8,6 +10,7 @@ import { briefSchema } from "@/lib/domain";
 export default function PurchasePage() {
   const started = useRef(false);
   const [plan, setPlan] = useState<"basic" | "pro">("basic");
+  const [stripeMode, setStripeMode] = useState<"live" | "test" | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
   async function openCheckout(selected: "basic" | "pro") {
@@ -15,6 +18,7 @@ export default function PurchasePage() {
     setError("");
     try {
       const session = await api("/api/session");
+      setStripeMode(session.stripeMode);
       if (!session.user?.email) {
         window.location.replace(`/account?next=${encodeURIComponent(`/purchase?plan=${selected}`)}`);
         return;
@@ -39,9 +43,12 @@ export default function PurchasePage() {
         id = saved.project.id;
         try { sessionStorage.setItem(cache, id!); } catch {}
       }
+      track("checkout_started", { plan: selected });
       const checkout = await api("/api/checkout", {plan: selected, projectId: id});
+      track("checkout_opened", { plan: selected });
       window.location.assign(checkout.url);
     } catch (e) {
+      track("checkout_error", { plan: selected });
       setError(e instanceof Error ? e.message : "Checkout could not be opened. Please try again.");
       setBusy(false);
     }
@@ -54,11 +61,11 @@ export default function PurchasePage() {
     void openCheckout(selected);
   }, []);
   return <main className="accountPage"><section className="accountCard">
-    <Link href="/" className="brand"><span className="brandMark">R</span>roomwise</Link>
+    <Link href="/" className="brand"><BrandMark/>Archicova</Link>
     <p className="kicker">ACCOUNT → SECURE CHECKOUT → YOUR WORKSPACE</p>
-    <h1>{plan === "pro" ? "Roomwise Pro" : "Roomwise Basic"}</h1>
+    <h1>{plan === "pro" ? "Archicova Pro" : "Archicova Basic"}</h1>
     <p>{plan === "pro" ? "$50/month · 350 credits · cancel anytime" : "$5/month · 30 credits · cancel anytime"}</p>
-    <p><ShieldCheck size={16}/> Stripe test checkout. No real charge in this PoC.</p>
+    <p><ShieldCheck size={16}/> {stripeMode === "test" ? "Stripe test checkout. No real charge." : "Secure payment through Stripe. Your subscription starts after payment."}</p>
     {busy ? <p role="status">Opening your secure checkout…</p> : <>
       <p role="alert" className="formError">{error}</p>
       <button className="primary wide" onClick={() => void openCheckout(plan)}>Try checkout again <ArrowRight size={16}/></button>

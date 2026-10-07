@@ -20,7 +20,7 @@ export async function GET() {
   return NextResponse.json(
     {
       status: databaseStatus === "unavailable" ? "degraded" : "ok",
-      service: "roomwise",
+      service: "archicova",
       storage: databaseStatus === "connected" ? "postgresql" : "browser",
       integrations: {
         database: databaseStatus,

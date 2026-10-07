@@ -419,7 +419,7 @@ export async function POST(r: NextRequest) {
             emit({ type: "done" });
           } catch (e) {
             // Never log raw provider errors: they can contain user content or credentials.
-            console.error("Roomwise planner failed", {
+            console.error("Archicova planner failed", {
               status: e instanceof OpenAI.APIError ? e.status : undefined,
               code: e instanceof OpenAI.APIError ? e.code : "stream_failure",
             });
@@ -450,7 +450,7 @@ export async function POST(r: NextRequest) {
             emit({
               type: "error",
               message: quota
-                ? "The planner’s API credit balance is unavailable. Please contact Roomwise support."
+                ? "The planner’s API credit balance is unavailable. Please contact Archicova support."
                 : "The planner could not finish this reply. Your chat is saved; please retry.",
             });
           } finally {

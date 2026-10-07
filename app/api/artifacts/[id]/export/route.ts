@@ -27,7 +27,7 @@ export async function GET(
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": 'attachment; filename="roomwise-materials.xlsx"',
+        "Content-Disposition": 'attachment; filename="archicova-materials.xlsx"',
         "Cache-Control": "private, no-store",
       },
     });

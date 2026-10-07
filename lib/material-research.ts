@@ -175,7 +175,7 @@ export async function searchMaterialProduct(
     await refundCredits(db, owner, operation).catch(() => {});
     if (e instanceof CreditError || e instanceof ProductSearchError) throw e;
     const failure = e as { status?: number; code?: string; param?: string };
-    console.warn("Roomwise product search failed", {
+    console.warn("Archicova product search failed", {
       phase,
       status: failure.status,
       code: failure.code,

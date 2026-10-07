@@ -72,7 +72,7 @@ export async function POST(r: NextRequest) {
     const url = new URL("/account", process.env.NEXT_PUBLIC_APP_URL);
     url.searchParams.set("reset", token);
     try {
-      await sendMail(email,"Reset your Roomwise password",`Reset your password: ${url}\n\nExpires in 15 minutes. Ignore this message if you did not request it.`);
+      await sendMail(email,"Reset your Archicova password",`Reset your password: ${url}\n\nExpires in 15 minutes. Ignore this message if you did not request it.`);
     } catch {
       await db.query(
         "DELETE FROM roomwise.password_resets WHERE token_hash=$1",

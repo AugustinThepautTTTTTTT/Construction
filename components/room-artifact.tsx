@@ -27,7 +27,7 @@ export function FloorPlan({ plan }: { plan: RoomPlan }) {
       url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "roomwise-floor-plan.svg";
+    a.download = "archicova-floor-plan.svg";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -202,7 +202,7 @@ export function RoomArtifact({ id }: { id: string }) {
           <p className="artifactHint">
             {plan.confirmed
               ? "Measurements confirmed by you. This remains a planning drawing."
-              : "Check every wall, opening and fixture dimension. Tell Roomwise corrections in chat before confirming."}
+              : "Check every wall, opening and fixture dimension. Tell Archicova corrections in chat before confirming."}
           </p>
           {!plan.confirmed && (
             <Button

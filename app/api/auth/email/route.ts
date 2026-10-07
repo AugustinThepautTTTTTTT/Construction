@@ -28,7 +28,7 @@ export async function POST(r: NextRequest) {
     );
     const link = new URL("/api/auth/verify", process.env.NEXT_PUBLIC_APP_URL);
     link.searchParams.set("token", token);
-    await sendMail(email,"Your Roomwise sign-in link",`Open your Roomwise workspace: ${link.toString()}\n\nThis link expires in 15 minutes. If you did not request it, ignore this email.`);
+    await sendMail(email,"Your Archicova sign-in link",`Open your Archicova workspace: ${link.toString()}\n\nThis link expires in 15 minutes. If you did not request it, ignore this email.`);
     return NextResponse.json({ sent: true });
   } catch {
     return error("We could not send the link. Please try again later.");

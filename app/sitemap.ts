@@ -1,2 +1,5 @@
 import type { MetadataRoute } from "next";
-export default function sitemap(): MetadataRoute.Sitemap { return [{ url: process.env.NEXT_PUBLIC_APP_URL || "https://roomwise.app", lastModified: new Date(), changeFrequency: "weekly", priority: 1 }]; }
+import { SITE, searchRobots } from "@/lib/seo";
+export default function sitemap(): MetadataRoute.Sitemap {
+  return searchRobots().index ? [{ url: SITE.url, changeFrequency: "monthly", priority: 1 }] : [];
+}

@@ -1,0 +1,20 @@
+import OpenAI from 'openai';
+import assert from 'node:assert/strict';
+import {estimateSchema} from '../lib/room-artifacts';
+import {productSearchRequest,runProductSearch,productExtractionRequest,resolveSearchLocation,diverseProductOptions} from '../lib/product-search';
+import {retrievedUrls,vettedPrices} from '../lib/price-research';
+async function main(){
+ if(process.env.ARCHICOVA_MARKET_EVAL!=='1'){console.log('Product market evaluation: opt-in disabled');return;}
+ assert.equal(process.env.VERCEL_ENV,'preview');assert.ok(process.env.OPENAI_API_KEY);assert.ok(process.env.OPENAI_MODEL);
+ const estimate=estimateSchema.parse({title:'Synthetic market check',country:'FR',city:'Mulhouse',currency:'EUR',items:[{item:'Interior wall paint',specification:'White washable matt paint for an interior living room',basis:'manual',manualQuantity:5,unit:'litre',coveragePerUnit:null,coats:1,waste:0,priceLow:15,priceHigh:35}],assumptions:[],exclusions:[]});
+ const location=resolveSearchLocation(estimate,{city:'Mulhouse',postalCode:'68100'}),client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0,timeout:90000});
+ console.log('Product market evaluation running: one synthetic item in Mulhouse, FR');
+ const search=await runProductSearch(client,productSearchRequest(estimate,0,process.env.OPENAI_MODEL!,'',location));assert.equal(search.status,'completed');
+ const urls=retrievedUrls(search.output),extraction=await client.responses.create(productExtractionRequest(estimate,0,process.env.OPENAI_MODEL!,'',location,search.output_text,urls));assert.equal(extraction.status,'completed');
+ const products=diverseProductOptions(vettedPrices(JSON.parse(extraction.output_text),estimate,urls,search.output_text,undefined,{openRetailers:true,allowAlternatives:true}));
+ const stores=new Set(products.map(p=>new URL(p.url).hostname.replace(/^www\./,'')));
+ console.log(`Product market evaluation: ${products.length} verified products from ${stores.size} stores`);
+ assert.ok(products.length>=2&&stores.size>=2,'Evaluation needs evidenced options from different stores');assert.ok(products.length<=6);
+ console.log('Product market evaluation passed; no customer account, bill or credits modified');
+}
+main().catch(()=>{console.error('Product market evaluation failed. No raw provider response or credentials logged.');process.exitCode=1;});

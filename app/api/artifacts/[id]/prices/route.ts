@@ -3,9 +3,9 @@ import { NextRequest,NextResponse } from "next/server";
 import { z } from "zod";
 import { identity,sameOrigin,error } from "@/lib/server";
 import { database } from "@/lib/database";
-import { searchMaterialProduct,selectMaterialProduct,ProductSearchError } from "@/lib/material-research";
+import { searchMaterialProduct,selectMaterialProduct,ProductSearchError,productSearchLocationSchema } from "@/lib/material-research";
 export const maxDuration=180;
-const lookup=z.object({index:z.number().int().min(0).max(39),preferences:z.string().max(500).default("")}).strict();
+const lookup=z.object({index:z.number().int().min(0).max(39),preferences:z.string().max(500).default(""),location:productSearchLocationSchema.optional()}).strict();
 export async function POST(r:NextRequest,{params}:{params:Promise<{id:string}>}){
  if(!sameOrigin(r))return error("Invalid request origin.",403);
  try{
@@ -16,7 +16,7 @@ export async function POST(r:NextRequest,{params}:{params:Promise<{id:string}>})
   const result=await db.query("SELECT a.data,p.paid FROM roomwise.artifacts a JOIN roomwise.projects p ON p.id=a.project_id WHERE a.id=$1 AND a.user_id=$2 AND a.kind='estimate'",[id,user.id]);
   if(!result.rows.length)return error("Bill not found.",404);
 
-  const comparison=await searchMaterialProduct(db,user.id,id,result.rows[0].data,body.data.index,body.data.preferences);
+  const comparison=await searchMaterialProduct(db,user.id,id,result.rows[0].data,body.data.index,body.data.preferences,body.data.location);
   return NextResponse.json({comparison});
  }catch(e){return error(e instanceof CreditError || e instanceof ProductSearchError?e.message:"Product comparison could not finish. Your existing bill is unchanged.", e instanceof CreditError ? 402 : 503);}
 }

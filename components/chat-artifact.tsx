@@ -1,12 +1,12 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@base-ui-components/react/button";
 import {
   ArrowUpRight,
   Download,
   FileText,
   Image as ImageIcon,
-  Paintbrush, Wrench, Package, Sofa, ShieldCheck, ChevronDown, Layers,
+  Search, Paintbrush, Wrench, Package, Sofa, ShieldCheck, ChevronDown, Layers,
 } from "lucide-react";
 import { api } from "@/lib/browser-storage";
 import {
@@ -257,6 +257,9 @@ function ChatBill({
   onChanged: () => void;
   unlocked: boolean;
 }) {
+  const [marketIndex,setMarketIndex] = useState<number|null>(null);
+  const marketRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(marketIndex!==null)marketRef.current?.scrollIntoView({block:"nearest",behavior:"smooth"});},[marketIndex]);
   const bill = materialPresentation(artifact),
     fmt = (value: number) => money(value, bill.currency),
     range = (low: number, high: number) =>
@@ -287,8 +290,9 @@ function ChatBill({
       <div className="billPreviewGrid">{bill.rows.slice(0,3).map((row:any)=>{
         const category=artifact.data.items?.[row.index]?.category;
         const Icon=category==='tools'?Wrench:category==='furniture'?Sofa:category==='preparation'?ShieldCheck:category==='finishes'?Paintbrush:Package;
-        return <article key={row.index}><Icon size={21}/><strong>{row.item}</strong><span>{row.quantity} {row.unit}</span><small>{row.source?fmt(row.subtotal):range(row.low,row.high)}</small></article>;
+        return <article key={row.index}><Icon size={21}/><strong>{row.item}</strong><span>{row.quantity} {row.unit}</span><small>{row.source?fmt(row.subtotal):range(row.low,row.high)}</small><Button className="billFindProduct" onClick={()=>setMarketIndex(marketIndex===row.index?null:row.index)} aria-expanded={marketIndex===row.index}><Search size={12}/>Find nearby products</Button></article>;
       })}</div>
+      {marketIndex!==null&&<div ref={marketRef}><ProductComparisonView key={`${artifact.id}-${marketIndex}`} artifact={artifact} index={marketIndex} onChanged={onChanged} unlocked={unlocked}/></div>}
       <details className="billFullDetails"><summary>View all {bill.rows.length} materials <ChevronDown size={15}/></summary>
       <div className="chatBillRows">
         {bill.rows.map((row: any) => (
@@ -299,7 +303,7 @@ function ChatBill({
               {row.source ? <a href={row.source.url} target="_blank" rel="noopener noreferrer">{retailerName(row.source.url)} <ArrowUpRight size={12}/></a> : <small>Estimated allowance · no verified product yet</small>}
               </details>
             </div>
-            <div className="chatBillPrice"><strong>{row.source ? fmt(row.subtotal) : range(row.low,row.high)}</strong><span>{row.quantity} {row.unit}{row.source ? ` × ${fmt(row.source.price)}` : ""}</span></div>
+            <div className="chatBillPrice"><Button className="billFindProduct" onClick={()=>setMarketIndex(marketIndex===row.index?null:row.index)} aria-expanded={marketIndex===row.index}><Search size={12}/>Find nearby products</Button><strong>{row.source ? fmt(row.subtotal) : range(row.low,row.high)}</strong><span>{row.quantity} {row.unit}{row.source ? ` × ${fmt(row.source.price)}` : ""}</span></div>
           </article>
         ))}
       </div></details>

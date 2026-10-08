@@ -7,7 +7,7 @@ import { estimateSchema } from "../lib/room-artifacts";
 const estimate=estimateSchema.parse({title:"Bathroom",country:"FR",city:"Mulhouse",currency:"EUR",items:[{item:"Wall paint",specification:"Bathroom washable warm white",basis:"manual",manualQuantity:1,unit:"litre",coveragePerUnit:null,coats:1,waste:0,priceLow:15,priceHigh:35}],assumptions:[],exclusions:[]});
 test("product searches target the material and local retailers on Luna with bounded calls",()=>{
   const request=productSearchRequest(estimate,0,"gpt-6-luna");
-  assert.equal(request.model,"gpt-6-luna");assert.equal(request.max_tool_calls,3);
+  assert.equal(request.model,"gpt-6-luna");assert.equal(request.max_tool_calls,5);
   assert.match(request.input as string,/Mulhouse/);assert.match(request.instructions!,/actual pack price/);assert.equal((request.tools![0] as any).filters,undefined);assert.match(request.instructions!,/different suitable retailers/);
   assert.equal(request.tool_choice,"required");
 });
@@ -15,7 +15,7 @@ test("rejected search schemas retry once with preview; paid or transient failure
   const calls:any[]=[];const request=productSearchRequest(estimate,0,"gpt-6-luna");
   const client={responses:{create:async(input:any)=>{calls.push(input);if(calls.length===1)throw{status:400,param:"tools"};return{status:"completed",output_text:"Product",output:[]};}}} as unknown as Pick<OpenAI,"responses">;
   await runProductSearch(client,request);
-  assert.equal(calls.length,2);assert.equal(calls[1].tools[0].type,"web_search_preview");assert.equal(calls[1].model,"gpt-6-luna");assert.deepEqual(calls[1].include,[]);
+  assert.equal(calls.length,2);assert.equal(calls[1].tools[0].type,"web_search_preview");assert.equal(calls[1].model,"gpt-6-luna");assert.equal(calls[1].tools[0].user_location.city,"Mulhouse");assert.deepEqual(calls[1].include,[]);
   for(const failure of [{status:429,param:"tools"},{status:400,param:"input"}]){
     let count=0;const failing={responses:{create:async()=>{count++;throw failure;}}} as unknown as Pick<OpenAI,"responses">;
     await assert.rejects(runProductSearch(failing,request));assert.equal(count,1);

@@ -80,5 +80,5 @@ test('chat work plans render collapsed steps with progress and professional requ
  const React=await import('react');const {renderToStaticMarkup}=await import('react-dom/server');const {ConstructionPlanView}=await import('../components/construction-plan');
  const artifact:any={id:'plan',data:{title:'Bathroom renovation',overview:'Ordered works',estimateId:'bill',steps:[{title:'Electrical installation',duration:'1 day',professionalRequired:true,instructions:['Isolate the circuit'],checks:['Certified'],materials:[]}],completedSteps:{},assumptions:[]}};
  const html=renderToStaticMarkup(React.createElement(ConstructionPlanView,{artifact,compact:true,chat:true}));
- assert.match(html,/<progress/);assert.match(html,/Professional/);assert.match(html,/Electrical installation/);assert.doesNotMatch(html,/<details open/);
+ assert.match(html,/<progress/);assert.match(html,/Professional/);assert.match(html,/Electrical installation/);assert.match(html,/workPlanSummary/);assert.doesNotMatch(html.split("<ol>")[1],/<details open/);
 });

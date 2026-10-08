@@ -10,7 +10,8 @@ export function ConstructionPlanView({artifact,onOpen,onMaterial,onChanged,onReq
  const [expandedStep,setExpandedStep]=useState<number|null>(focusStep??(chat?null:0));
  useEffect(()=>{if(focusStep!=null)setExpandedStep(focusStep);},[focusStep]);
  const plan=artifact.data;
- return <section className={`constructionPlan ${compact?"compact":""} ${chat?"chatWorks":""}`} aria-label="Construction plan">
+ return <details open className={`constructionPlan ${compact?"compact":""} ${chat?"chatWorks":""}`} aria-label="Construction plan">
+  <summary className="workPlanSummary"><ClipboardList size={16}/> <strong>Work plan</strong> <span>{Object.values(plan.completedSteps||{}).filter(Boolean).length} / {plan.steps.length} complete</span></summary>
   <header><div><ClipboardList size={15}/>Your works plan</div><h3>{plan.title}</h3><p>{plan.overview}</p>{onOpen&&<Button onClick={()=>onOpen(plan.estimateId)}>Linked bill · {plan.billTitle||"Materials"}<ArrowUpRight size={13}/></Button>}</header>
   {notice&&<p role="status">{notice}</p>}
   {compact&&<><progress className="worksProgressBar" aria-label="Work plan progress" value={Object.values(plan.completedSteps||{}).filter(Boolean).length} max={plan.steps.length}/><p className="worksProgress">{Object.values(plan.completedSteps||{}).filter(Boolean).length} of {plan.steps.length} steps complete · Expand a step to see instructions</p></>}
@@ -23,5 +24,5 @@ export function ConstructionPlanView({artifact,onOpen,onMaterial,onChanged,onReq
   </details></li>)}</ol>
   {!!plan.assumptions?.length&&<details><summary>Planning assumptions</summary>{plan.assumptions.map((text:string,i:number)=><p key={i}>{text}</p>)}</details>}
   {!compact&&onOpen&&<footer><Button onClick={()=>onOpen(artifact.id)}>In your project<ArrowUpRight size={13}/></Button></footer>}
- </section>;
+ </details>;
 }

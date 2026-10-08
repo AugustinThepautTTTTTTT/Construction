@@ -30,7 +30,8 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
    if(method==='POST'){setLocal(result.comparison);setActive(0);setRefine(false);}await onChanged();
   }catch(e){setNotice(e instanceof Error?e.message:"Could not finish the product comparison.");}finally{setPending(null);}
  }
- return <section className="productComparison productMarket" aria-label={`Find products for ${data.items[index]?.item}`}>
+ return <details open className="productComparison productMarket" aria-label={`Find products for ${data.items[index]?.item}`}>
+  <summary className="marketSummary"><Search size={16}/><strong>Products</strong><span>{data.items[index]?.item}</span></summary>
   <header className="marketHeader"><span className="marketEyebrow"><Search size={14}/>YOUR LOCAL MARKET</span><h3>{data.items[index]?.item}</h3><p><MapPin size={13}/>{[comparison?.location?.city||data.city,data.country].filter(Boolean).join(', ')||'Choose your shopping area'} · Compare retailer listings</p></header>
   {(!cardsOnly||refine)&&<form className="marketSearchForm" onSubmit={e=>{e.preventDefault();void request('POST',{index,preferences,location:{city:city.trim(),postalCode:postalCode.trim()}});}}>
    <div className="marketLocationFields"><label>City<input required maxLength={100} value={city} onChange={e=>setCity(e.target.value)} placeholder="Where are you shopping?" autoComplete="address-level2"/></label><label>Postcode <span>optional</span><input maxLength={20} value={postalCode} onChange={e=>setPostalCode(e.target.value)} placeholder="Local area" autoComplete="postal-code"/></label></div>
@@ -65,5 +66,5 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
   </>}
   {!busy&&comparison&&!options.length&&<div className="marketEmpty"><Package size={28}/><strong>No verified matches yet</strong><p>Try a different finish, a clearer specification or a wider shopping area. Your bill has not changed.</p></div>}
   {comparison&&<p className="marketFootnote">{comparison.notice} Checked {new Date(comparison.checkedAt).toLocaleDateString('en-GB')}.</p>}
- </section>;
+ </details>;
 }

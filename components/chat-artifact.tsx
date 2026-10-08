@@ -6,7 +6,7 @@ import {
   Download,
   FileText,
   Image as ImageIcon,
-  Search, Paintbrush, Wrench, Package, Sofa, ShieldCheck, ChevronDown, Layers,
+  Search, ChevronDown,
 } from "lucide-react";
 import { api } from "@/lib/browser-storage";
 import {
@@ -286,19 +286,9 @@ function ChatBill({
             : "estimated costs"}
         </p>
       </header>
-      <div className="billSnapshot" aria-label="Materials summary">
-        <div><Package size={19}/><strong>{bill.rows.length}</strong><span>Materials & tools</span></div>
-        <div><ShieldCheck size={19}/><strong>{bill.verifiedCount}</strong><span>Verified selections</span></div>
-        <div><Layers size={19}/><strong>{range(bill.low,bill.high)}</strong><span>Estimated materials total</span></div>
-      </div>
       {artifact.data.calculations?.provisional && <p className="billCaution">Approximate quantities · confirm measurements before ordering.</p>}
-      <div className="billPreviewGrid">{bill.rows.slice(0,3).map((row:any)=>{
-        const category=artifact.data.items?.[row.index]?.category;
-        const Icon=category==='tools'?Wrench:category==='furniture'?Sofa:category==='preparation'?ShieldCheck:category==='finishes'?Paintbrush:Package;
-        return <article key={row.index}><Icon size={21}/><strong>{row.item}</strong><span>{row.quantity} {row.unit}</span><small>{row.source?fmt(row.subtotal):range(row.low,row.high)}</small><Button className="billFindProduct" onClick={()=>setMarketIndex(marketIndex===row.index?null:row.index)} aria-expanded={marketIndex===row.index}><Search size={12}/>Find nearby products</Button></article>;
-      })}</div>
       {marketIndex!==null&&<div ref={marketRef}><ProductComparisonView key={`${artifact.id}-${marketIndex}`} artifact={artifact} index={marketIndex} onChanged={onChanged} unlocked={unlocked}/></div>}
-      <details className="billFullDetails"><summary>View all {bill.rows.length} materials <ChevronDown size={15}/></summary>
+      <details className="billFullDetails"><summary>{bill.rows.length} materials · {range(bill.low,bill.high)} <ChevronDown size={15}/></summary>
       <div className="chatBillRows">
         {bill.rows.map((row: any) => (
           <article key={row.index}>
@@ -308,7 +298,7 @@ function ChatBill({
               {row.source ? <a href={row.source.url} target="_blank" rel="noopener noreferrer">{retailerName(row.source.url)} <ArrowUpRight size={12}/></a> : <small>Estimated allowance · no verified product yet</small>}
               </details>
             </div>
-            <div className="chatBillPrice"><Button className="billFindProduct" onClick={()=>setMarketIndex(marketIndex===row.index?null:row.index)} aria-expanded={marketIndex===row.index}><Search size={12}/>Find nearby products</Button><strong>{row.source ? fmt(row.subtotal) : range(row.low,row.high)}</strong><span>{row.quantity} {row.unit}{row.source ? ` × ${fmt(row.source.price)}` : ""}</span></div>
+            <div className="chatBillPrice"><Button className="billFindProduct" onClick={()=>setMarketIndex(marketIndex===row.index?null:row.index)} aria-expanded={marketIndex===row.index}><Search size={12}/>Find products</Button><strong>{row.source ? fmt(row.subtotal) : range(row.low,row.high)}</strong><span>{row.quantity} {row.unit}{row.source ? ` × ${fmt(row.source.price)}` : ""}</span></div>
           </article>
         ))}
       </div></details>

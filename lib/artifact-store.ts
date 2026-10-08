@@ -1,3 +1,4 @@
+import {assertMarketMatches} from "./market-context";
 import {openInspirationSchema,inspirationProfile} from "./inspiration-library";
 import {workUpdateSchema,updateWorkPlan} from "./work-assistant";
 import {requirePaid} from "./credits";
@@ -23,7 +24,7 @@ export async function runRoomTool(
   projectId: string,
   name: string,
   args: unknown,
-  options?: { inspiration?:boolean;executionUpdate?:boolean; productSearch?: boolean; visuals?: boolean; revisionSourceId?: string; materials?: boolean; construction?: boolean; layout?: boolean },
+  options?: { market?:{city:string;country:string|null;currency:string|null}|null; inspiration?:boolean;executionUpdate?:boolean; productSearch?: boolean; visuals?: boolean; revisionSourceId?: string; materials?: boolean; construction?: boolean; layout?: boolean },
 ) {
   if(name==='open_inspiration_library'&&options?.inspiration===false)throw new Error('Inspiration was not requested.');
   if(name==='update_work_plan'&&options?.executionUpdate!==true)throw new Error('Work-plan update was not requested.');
@@ -58,6 +59,7 @@ export async function runRoomTool(
     );
     if (!bill.rows.length)
       throw new Error("Choose a material bill from this room.");
+    if(options && 'market' in options)assertMarketMatches(bill.rows[0].data,options.market??null);
     const comparison = await searchMaterialProduct(
       db,
       owner,
@@ -149,6 +151,7 @@ export async function runRoomTool(
     data = {...visual,...(profile?{inspirationProfile:profile}:{}), ...(options?.visuals === true ? {visualAuthorized:true} : {}), ...(revisionSourceId ? {revisionSourceId} : {})};
   } else if (name === "create_material_estimate") {
     const estimate = estimateSchema.parse(args);
+    if(options && 'market' in options)assertMarketMatches(estimate,options.market??null);
 
     const cad = await getCad(db, owner, projectId);
     const plan = cad ? cadPlan(cad.model) : (null as RoomPlan | null);

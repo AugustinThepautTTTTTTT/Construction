@@ -4,6 +4,7 @@ import "@/components/project-workspace.css";
 import "@/components/chat-artifact.css";
 import "@/components/product-market.css";
 import "@/components/inspiration-library.css";
+import "@/components/conversation-artifacts.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
 import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";
@@ -166,7 +167,7 @@ export default function ChatPage() {
           .catch(() => {});
         setActive(selected);
         if (selected && !q.get("folder"))
-          setProjectPanelOpen(window.matchMedia("(min-width:1021px)").matches);
+          setProjectPanelOpen(false);
         if (q.get("folder")) setSelectedFolder(q.get("folder")!);
         setReady(true);
         let draft: unknown;
@@ -275,7 +276,7 @@ export default function ChatPage() {
     setSelectedFolder("");
     setActive(id);
     setPanelFocus("visuals");
-    setProjectPanelOpen(window.matchMedia("(min-width:1021px)").matches);
+    setProjectPanelOpen(false);
     setHighlight(null);
     setInput("");
     setNotice("");

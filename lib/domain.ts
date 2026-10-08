@@ -4,6 +4,7 @@ export const briefSchema = z.object({
   goal: z.string().trim().min(3).max(2000),
   budget: z.string().trim().max(100).default("Not set"),
   size: z.string().trim().max(100).default("Not measured"),
+  market: z.object({city:z.string().max(100),country:z.string().regex(/^[A-Z]{2}$/),currency:z.string().regex(/^[A-Z]{3}$/)}).nullable().optional(),
   location: z.string().trim().max(100).default("Not specified"),
 });
 export type Brief = z.infer<typeof briefSchema>;

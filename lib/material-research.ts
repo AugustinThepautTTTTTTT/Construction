@@ -21,14 +21,15 @@ import {
   runProductSearch, productExtractionRequest,
   reusableComparison, resolveSearchLocation, diverseProductOptions, type SearchLocation,
 } from "./product-search";
+export const productSearchLocationSchema=z.object({city:z.string().trim().min(1).max(100),postalCode:z.string().trim().max(20).default('')}).strict();
 export const productLookupSchema = z
   .object({
     estimateId: z.string().uuid(),
     index: z.number().int().min(0).max(39),
     preferences: z.string().max(500),
+    location: productSearchLocationSchema.nullable().optional(),
   })
   .strict();
-export const productSearchLocationSchema=z.object({city:z.string().trim().min(1).max(100),postalCode:z.string().trim().max(20).default('')}).strict();
 export class ProductSearchError extends Error {}
 export type ProductComparison = {
   index: number;

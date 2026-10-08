@@ -48,6 +48,7 @@ export async function runRoomTool(
       bill.rows[0].data,
       lookup.index,
       lookup.preferences,
+      lookup.location || undefined,
     );
     return {
       id: lookup.estimateId,

@@ -9,7 +9,7 @@ const specs = [
     folder: "find-product",
     name: "search_material_product",
     description:
-      "Advanced opt-in search: compare up to two actual retailer products for ONE requested bill row. Use only when the user explicitly asks to find/compare a specific product. Never run as part of a default BOM or construction plan. Requires saved bill ID and exact row index.",
+      "Advanced opt-in search: compare up to six actual products from different retailers for ONE requested bill row. Use only when the user explicitly asks to find/compare a specific product. Never run as part of a default BOM or construction plan. Requires saved bill ID and exact row index. Supply location only for an explicitly requested city/postcode; otherwise null uses the bill location.",
     schema: productLookupSchema,
   },
   {
@@ -81,6 +81,11 @@ export function skillTools(options?: {
     )
     .map((s) => {
       const { $schema, ...parameters } = s.schema.toJSONSchema({ io: "input" });
+      if (s.name === "search_material_product") {
+        parameters.required = Object.keys(parameters.properties!);
+        const location = (parameters.properties as any).location.anyOf.find((variant:any) => variant.type === "object");
+        location.required = Object.keys(location.properties);
+      }
       if (s.name === "create_material_estimate") {
         parameters.required = Object.keys(parameters.properties!);
         const items = (parameters.properties as any).items.items;

@@ -36,3 +36,16 @@ test('location inputs validate before a charged search',async()=>{
  assert.equal(productSearchLocationSchema.safeParse({city:'Paris',country:'US'}).success,false);
  assert.equal(productSearchLocationSchema.safeParse({city:'Paris',postalCode:'x'.repeat(21)}).success,false);
 });
+
+test('chat product searches accept explicit areas and publish a strict nullable location tool',async()=>{
+ const {productLookupSchema}=await import('../lib/material-research');
+ const {skillTools}=await import('../lib/skill-registry');
+ const args={estimateId:'00000000-0000-4000-8000-000000000001',index:0,preferences:''};
+ assert.equal(productLookupSchema.safeParse(args).success,true);
+ assert.equal(productLookupSchema.parse({...args,location:{city:'Paris',postalCode:'75001'}}).location?.city,'Paris');
+ const tool=skillTools().find(tool=>tool.name==='search_material_product')!;
+ assert.ok(tool.parameters.required!.includes('location'));
+ const location=(tool.parameters.properties as any).location;
+ assert.ok(location.anyOf.some((variant:any)=>variant.type==='null'));
+ assert.deepEqual(location.anyOf.find((variant:any)=>variant.type==='object').required,['city','postalCode']);
+});

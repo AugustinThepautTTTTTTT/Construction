@@ -11,7 +11,8 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
  const data=artifact.data;
  const saved=data.productComparisons?.[index];
  const [preferences,setPreferences]=useState(saved?.preferences||""),[city,setCity]=useState(saved?.location?.city||data.city||""),[postalCode,setPostalCode]=useState(saved?.location?.postalCode||"");
- const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[local,setLocal]=useState<any>(null),[active,setActive]=useState(0),[refine,setRefine]=useState(false);
+ const [pending,setPending]=useState<"POST"|"PATCH"|null>(null),[notice,setNotice]=useState(""),[local,setLocal]=useState<any>(null),[active,setActive]=useState(0),[refine,setRefine]=useState(false);
+ const busy=pending!==null;
  const touch=useRef<{x:number;y:number}|null>(null);
  useEffect(()=>{setLocal(null);setActive(0);setPreferences(saved?.preferences||"");setCity(saved?.location?.city||data.city||"");setPostalCode(saved?.location?.postalCode||"");},[artifact.id,index]);
  const comparison=local||saved,selected=data.priceSources?.find((p:PriceSource)=>p.index===index);
@@ -22,24 +23,24 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
  const current=Math.min(active,Math.max(0,options.length-1));
  function move(direction:number){if(options.length)setActive(value=>(value+direction+options.length)%options.length);}
  async function request(method:"POST"|"PATCH",body:unknown){
-  if(busy)return;setBusy(true);setNotice("");
+  if(busy)return;setPending(method);setNotice("");
   try{
    const r=await fetch(`/api/artifacts/${artifact.id}/prices`,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),result=await r.json();
    if(!r.ok)throw new Error(result.error||"Could not finish this comparison.");
    if(method==='POST'){setLocal(result.comparison);setActive(0);setRefine(false);}await onChanged();
-  }catch(e){setNotice(e instanceof Error?e.message:"Could not finish the product comparison.");}finally{setBusy(false);}
+  }catch(e){setNotice(e instanceof Error?e.message:"Could not finish the product comparison.");}finally{setPending(null);}
  }
  return <section className="productComparison productMarket" aria-label={`Find products for ${data.items[index]?.item}`}>
   <header className="marketHeader"><span className="marketEyebrow"><Search size={14}/>YOUR LOCAL MARKET</span><h3>{data.items[index]?.item}</h3><p><MapPin size={13}/>{[comparison?.location?.city||data.city,data.country].filter(Boolean).join(', ')||'Choose your shopping area'} · Compare retailer listings</p></header>
   {(!cardsOnly||refine)&&<form className="marketSearchForm" onSubmit={e=>{e.preventDefault();void request('POST',{index,preferences,location:{city:city.trim(),postalCode:postalCode.trim()}});}}>
    <div className="marketLocationFields"><label>City<input required maxLength={100} value={city} onChange={e=>setCity(e.target.value)} placeholder="Where are you shopping?" autoComplete="address-level2"/></label><label>Postcode <span>optional</span><input maxLength={20} value={postalCode} onChange={e=>setPostalCode(e.target.value)} placeholder="Local area" autoComplete="postal-code"/></label></div>
    <label>What matters to you?<input maxLength={500} value={preferences} onChange={e=>setPreferences(e.target.value)} placeholder="Colour, finish, dimensions or budget…"/></label>
-   <div className="marketSearchAction"><Button type="submit" disabled={busy||!unlocked||!city.trim()}>{busy?<LoaderCircle size={15} className="marketSpinner"/>:<Search size={15}/>} {busy?'Searching local retailers…':comparison?'Refresh product search':'Find nearby products'}</Button><small>{CREDIT_COST.search} credits per new search · cached results are reused</small></div>
+   <div className="marketSearchAction"><Button type="submit" disabled={busy||!unlocked||!city.trim()}>{busy?<LoaderCircle size={15} className="marketSpinner"/>:<Search size={15}/>} {busy?(pending==='PATCH'?'Saving selection…':'Searching local retailers…'):comparison?'Refresh product search':'Find nearby products'}</Button><small>{CREDIT_COST.search} credits per new search · cached results are reused</small></div>
    {!unlocked&&<p className="marketUpgrade">Product search is included in Basic and Pro. <a href="/purchase?plan=basic">See plans</a></p>}
   </form>}
   {cardsOnly&&!refine&&<Button className="marketRefine" onClick={()=>setRefine(true)}><MapPin size={13}/>Change area or refine search</Button>}
   {notice&&<p className="marketNotice" role="alert">{notice}</p>}
-  {busy&&<p className="marketSearching" role="status">Checking product pages, pack prices and suitable retailers. Your bill stays unchanged until you choose a product.</p>}
+  {busy&&<p className="marketSearching" role="status">{pending==='PATCH'?'Saving your selected product to the bill…':'Checking product pages, pack prices and suitable retailers. Your bill stays unchanged until you choose a product.'}</p>}
   {!!options.length&&<>
    <div className="marketCarousel" role="region" aria-roledescription="carousel" aria-label="Retailer product alternatives" tabIndex={0} onKeyDown={e=>{if(e.key==='ArrowRight'){e.preventDefault();e.currentTarget.focus({preventScroll:true});move(1);}if(e.key==='ArrowLeft'){e.preventDefault();e.currentTarget.focus({preventScroll:true});move(-1);}}} onTouchStart={e=>{const t=e.touches[0];touch.current={x:t.clientX,y:t.clientY};}} onTouchEnd={e=>{const start=touch.current,t=e.changedTouches[0];touch.current=null;if(start&&Math.abs(t.clientX-start.x)>45&&Math.abs(t.clientX-start.x)>Math.abs(t.clientY-start.y))move(t.clientX<start.x?1:-1);}}>
     {options.map(({source,row,total}:{source:PriceSource;row:any;total:number},position:number)=>{

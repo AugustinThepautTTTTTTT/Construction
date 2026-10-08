@@ -2,11 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import "./bathroom-seo.css";
+import {PublicSiteHeader,PublicSiteFooter} from "@/components/public-site-chrome";
 
 export const routes = { hub:"/en/bathroom-renovation/", design:"/en/ai-bathroom-design/", inspiration:"/en/bathroom-inspiration/" } as const;
 export const signup="/account?next=%2Fchat";
 export function CTA({children,secondary=false}:{children:ReactNode;secondary?:boolean}){return <Link className={secondary?"seoBtn seoBtnOutline":"seoBtn"} href={signup}>{children}<span aria-hidden="true">↗</span></Link>}
-export function SEOLayout({children}:{children:ReactNode}){return <div className="bathSeo"><header className="seoTop"><Link href="/" className="seoBrand"><span className="seoBrandBadge">A</span> Archicova</Link><nav aria-label="Bathroom pages"><Link href={routes.hub}>Renovation guide</Link><Link href={routes.inspiration}>Inspiration</Link><Link href={routes.design}>AI design</Link></nav><CTA>Get started free</CTA></header>{children}<footer className="seoFooter"><div><strong>Archicova</strong><p>From inspiration to the work ahead.</p></div><div><Link href={routes.hub}>Bathroom renovation</Link><Link href={routes.inspiration}>Browse inspiration</Link><Link href={routes.design}>AI bathroom design</Link></div><p>Planning estimates and AI visuals require verification. Plumbing, electrical, structural and wet-area work may require qualified professionals.</p></footer></div>}
+export function SEOLayout({children}:{children:ReactNode}){return <div className="bathSeo"><PublicSiteHeader/>{children}<PublicSiteFooter/></div>}
 export function Eyebrow({children}:{children:ReactNode}){return <p className="seoEyebrow"><span className="seoDot"/> {children}</p>}
 export function Hero({eyebrow,title,accent,description,children,photo="/inspiration/bathroom.jpg"}:{eyebrow:string;title:string;accent:string;description:string;children:ReactNode;photo?:string}){return <section className="seoHero"><div className="seoHeroText"><Eyebrow>{eyebrow}</Eyebrow><h1>{title}<em>{accent}</em></h1><p className="seoLead">{description}</p><div className="seoActions">{children}</div><p className="seoTrust">Create an account to use the AI tools · One connected renovation chat</p></div><div className="seoHeroVisual"><Image src={photo} alt="Bathroom design inspiration for renovation planning" fill priority sizes="(max-width: 800px) 100vw, 50vw"/><div className="seoImageTag">INSPIRATION / BATHROOM</div></div></section>}
 export function Section({kicker,title,children}:{kicker?:string;title:string;children:ReactNode}){return <section className="seoSection">{kicker&&<Eyebrow>{kicker}</Eyebrow>}<h2>{title}</h2>{children}</section>}

@@ -8,3 +8,29 @@
 .seoEditorialColumns{max-width:1050px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:60px}
 .seoEditorialSpacer{height:8px}
 @media(max-width:820px){.seoEditorial{font-size:16px;line-height:1.85}.seoEditorialColumns{grid-template-columns:1fr;gap:4px}.seoEditorial h3{margin-top:30px}}
+
+/* Editorial-first redesign: cards become quiet typographic rows. */
+.bathSeo .seoSection{padding-top:78px;padding-bottom:78px}
+.bathSeo .seoSection:nth-of-type(even){background:transparent}
+.bathSeo .seoCards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 60px;margin-top:32px}
+.bathSeo .seoCard{border:0;border-top:1px solid #ced8cf;border-radius:0;box-shadow:none;background:transparent;min-height:0;padding:23px 0 30px}
+.bathSeo .seoCardSymbol{display:none}
+.bathSeo .seoCard h3{font-family:var(--font-serif),Georgia,serif;font-size:clamp(22px,2vw,27px);font-weight:400;line-height:1.25;margin:0 0 11px}
+.bathSeo .seoCard p{font-size:15px;line-height:1.85;max-width:48ch;margin:0 0 12px}
+.bathSeo .seoSection>.seoEyebrow{margin-bottom:10px}
+.bathSeo .seoSection>h2{max-width:760px;margin-bottom:30px}
+.bathSeo .seoSection>p{font-size:17px;line-height:1.9;max-width:760px}
+.bathSeo .seoFAQ{grid-template-columns:1fr 1fr;gap:8px 60px}
+.bathSeo .seoFAQ article{background:none;padding:20px 0;border-top:1px solid #ced8cf}
+.bathSeo .seoFAQ h3{font-family:var(--font-serif),Georgia,serif;font-size:22px;font-weight:400}
+.bathSeo .seoFAQ p{font-size:15px;line-height:1.85}
+.bathSeo .seoCallout{border-radius:4px;background:#e7ede6;border-left:3px solid #7c9f87}
+.bathSeo .seoGalleryItem{box-shadow:none;border:0;border-radius:3px;background:transparent}
+.bathSeo .seoGalleryPicture{border-radius:4px;overflow:hidden}
+.bathSeo .seoGalleryInfo{padding:19px 3px 25px}
+.bathSeo .seoGalleryInfo h3{font-family:var(--font-serif),Georgia,serif;font-weight:400;font-size:24px}
+.bathSeo .seoGalleryInfo p{font-size:14px;line-height:1.8}
+.bathSeo .seoFinal{margin-top:30px;padding:88px 24px}
+.bathSeo .seoFinal h2{max-width:740px}
+.bathSeo .seoFinal p{font-size:17px;line-height:1.85}
+@media(max-width:820px){.bathSeo .seoCards,.bathSeo .seoFAQ{grid-template-columns:1fr;gap:0}.bathSeo .seoSection{padding-top:50px;padding-bottom:50px}}

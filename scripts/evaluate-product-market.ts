@@ -12,7 +12,9 @@ async function main(){
  console.log('Product market evaluation running: one synthetic item in Mulhouse, FR');
  const search=await runProductSearch(client,productSearchRequest(estimate,0,process.env.OPENAI_MODEL!,'',location));assert.equal(search.status,'completed');
  const urls=retrievedUrls(search.output),extraction=await client.responses.create(productExtractionRequest(estimate,0,process.env.OPENAI_MODEL!,'',location,search.output_text,urls));assert.equal(extraction.status,'completed');
- const products=diverseProductOptions(vettedPrices(JSON.parse(extraction.output_text),estimate,urls,search.output_text,undefined,{openRetailers:true,allowAlternatives:true}));
+ const extracted=JSON.parse(extraction.output_text),diagnostics:Record<string,number>={};
+ const products=diverseProductOptions(vettedPrices(extracted,estimate,urls,search.output_text,diagnostics,{openRetailers:true,allowAlternatives:true}));
+ console.log(`Product evidence evaluation: ${urls.size} retrieved URLs, ${extracted.products.length} extracted products; rejected ${JSON.stringify(diagnostics)}`);
  const stores=new Set(products.map(p=>new URL(p.url).hostname.replace(/^www\./,'')));
  console.log(`Product market evaluation: ${products.length} verified products from ${stores.size} stores`);
  assert.ok(products.length>=2&&stores.size>=2,'Evaluation needs evidenced options from different stores');assert.ok(products.length<=6);

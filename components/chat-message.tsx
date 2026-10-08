@@ -1,4 +1,5 @@
 "use client";
+import type {ChatRequest} from "@/lib/product-chat";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { Button } from "@base-ui-components/react/button";
 import { Check } from "lucide-react";
@@ -18,7 +19,7 @@ function MessageView({
   repeatedArtifactIds = [],
 }: {
   message: Message;
-  onRequest?:(message:string)=>void;
+  onRequest?:ChatRequest;
   repeatedArtifactIds?: string[];
   onOpenArtifact?: (id: string) => void;
   artifacts: Artifact[];

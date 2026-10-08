@@ -1,5 +1,7 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import {productChatRequest} from "@/lib/product-chat";
+import type {ChatRequest} from "@/lib/product-chat";
+import React, { useEffect, useState } from "react";
 import { Button } from "@base-ui-components/react/button";
 import {
   ArrowUpRight,
@@ -36,7 +38,7 @@ export function ChatArtifact({
   unlocked: boolean;
   onOpen?: (id: string) => void;
   onChanged: () => void;
-  onRequest?:(message:string)=>void;
+  onRequest?:ChatRequest;
 }) {
   const [saved, setSaved] = useState<Artifact | null>(null),
     [notice, setNotice] = useState(""),
@@ -98,6 +100,7 @@ export function ChatArtifact({
     return (
       <ProductComparisonView
         cardsOnly
+        onRequest={onRequest}
         artifact={artifact}
         index={productView.index}
         onChanged={() => {
@@ -113,6 +116,7 @@ export function ChatArtifact({
   if (artifact.kind === "estimate")
     return (
       <ChatBill
+        onRequest={onRequest}
         artifact={artifact}
         onOpen={onOpen}
         onChanged={() => {
@@ -254,17 +258,15 @@ function ChatBill({
   artifact,
   onOpen,
   onChanged,
+  onRequest,
   unlocked,
 }: {
   artifact: Artifact;
   onOpen?: (id: string) => void;
   onChanged: () => void;
-  onRequest?:(message:string)=>void;
+  onRequest?:ChatRequest;
   unlocked: boolean;
 }) {
-  const [marketIndex,setMarketIndex] = useState<number|null>(null);
-  const marketRef=useRef<HTMLDivElement>(null);
-  useEffect(()=>{if(marketIndex!==null)marketRef.current?.scrollIntoView({block:"nearest",behavior:"smooth"});},[marketIndex]);
   const bill = materialPresentation(artifact),
     fmt = (value: number) => money(value, bill.currency),
     range = (low: number, high: number) =>
@@ -287,7 +289,6 @@ function ChatBill({
         </p>
       </header>
       {artifact.data.calculations?.provisional && <p className="billCaution">Approximate quantities · confirm measurements before ordering.</p>}
-      {marketIndex!==null&&<div ref={marketRef}><ProductComparisonView key={`${artifact.id}-${marketIndex}`} artifact={artifact} index={marketIndex} onChanged={onChanged} unlocked={unlocked}/></div>}
       <details className="billFullDetails"><summary>{bill.rows.length} materials · {range(bill.low,bill.high)} <ChevronDown size={15}/></summary>
       <div className="chatBillRows">
         {bill.rows.map((row: any) => (
@@ -298,7 +299,7 @@ function ChatBill({
               {row.source ? <a href={row.source.url} target="_blank" rel="noopener noreferrer">{retailerName(row.source.url)} <ArrowUpRight size={12}/></a> : <small>Estimated allowance · no verified product yet</small>}
               </details>
             </div>
-            <div className="chatBillPrice"><Button className="billFindProduct" onClick={()=>setMarketIndex(marketIndex===row.index?null:row.index)} aria-expanded={marketIndex===row.index}><Search size={12}/>Find products</Button><strong>{row.source ? fmt(row.subtotal) : range(row.low,row.high)}</strong><span>{row.quantity} {row.unit}{row.source ? ` × ${fmt(row.source.price)}` : ""}</span></div>
+            <div className="chatBillPrice"><Button className="billFindProduct" disabled={!onRequest} onClick={()=>{const request=productChatRequest(artifact.id,row.index,row.item);onRequest?.(request.message,request.productTarget);}}><Search size={12}/>Find products</Button><strong>{row.source ? fmt(row.subtotal) : range(row.low,row.high)}</strong><span>{row.quantity} {row.unit}{row.source ? ` × ${fmt(row.source.price)}` : ""}</span></div>
           </article>
         ))}
       </div></details>

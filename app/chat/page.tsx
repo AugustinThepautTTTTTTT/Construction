@@ -7,6 +7,7 @@ import "@/components/inspiration-library.css";
 import "@/components/conversation-artifacts.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
+import type {ProductTarget} from "@/lib/product-chat";
 import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";
 import { FolderOpen, Zap } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -363,7 +364,7 @@ export default function ChatPage() {
     setSidebar(false);
     window.history.replaceState(null, "", "/chat");
   }
-  async function send(e: FormEvent | null, suggested?:string) {
+  async function send(e: FormEvent | null, suggested?:string,productTarget?:ProductTarget) {
     e?.preventDefault();
     following.current = true;
     if (cadDirty) {
@@ -425,7 +426,7 @@ export default function ChatPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: p!.id, message: text, photoIds, uiAction: suggested!==undefined }),
+        body: JSON.stringify({ projectId: p!.id, message: text, photoIds, uiAction: suggested!==undefined, productTarget }),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -837,7 +838,7 @@ export default function ChatPage() {
                         }
                         unlocked={unlocked}
                         onArtifactsChanged={artifactsChanged}
-                        onRequest={text=>{if(!busy)void send(null,text);}}
+                        onRequest={(text,target)=>{if(!busy)void send(null,text,target);}}
                       />
                     </div>
                   ))}
@@ -904,6 +905,7 @@ export default function ChatPage() {
           onArtifacts={receiveArtifacts}
           onDirtyChange={setCadDirty}
           onClose={() => setProjectPanelOpen(false)}
+          onRequest={(text,target)=>{if(!busy){setProjectPanelOpen(false);void send(null,text,target);}}}
           onAsk={(text) => {
             setInput(text);
             setSidebar(false);

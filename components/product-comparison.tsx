@@ -1,4 +1,5 @@
 "use client";
+import type {ChatRequest} from "@/lib/product-chat";
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@base-ui-components/react/button";
 import { Check, ExternalLink, Search, Package, MapPin, ChevronLeft, ChevronRight, LoaderCircle } from "lucide-react";
@@ -7,7 +8,7 @@ import { applyProductPacks } from "@/lib/price-research";
 import { money, retailerName } from "@/lib/material-presentation";
 import { CREDIT_COST } from "@/lib/credits";
 
-export function ProductComparisonView({artifact,index,onChanged,unlocked=true,cardsOnly=false}:{artifact:Artifact;index:number;onChanged:()=>void|Promise<void>;unlocked?:boolean;cardsOnly?:boolean}) {
+export function ProductComparisonView({artifact,index,onChanged,unlocked=true,cardsOnly=false,onRequest}:{artifact:Artifact;index:number;onChanged:()=>void|Promise<void>;unlocked?:boolean;cardsOnly?:boolean;onRequest?:ChatRequest}) {
  const data=artifact.data;
  const saved=data.productComparisons?.[index];
  const [preferences,setPreferences]=useState(saved?.preferences||""),[city,setCity]=useState(saved?.location?.city||data.city||""),[postalCode,setPostalCode]=useState(saved?.location?.postalCode||"");
@@ -33,13 +34,14 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
  return <details open className="productComparison productMarket" aria-label={`Find products for ${data.items[index]?.item}`}>
   <summary className="marketSummary"><Search size={16}/><strong>Products</strong><span>{data.items[index]?.item}</span></summary>
   <header className="marketHeader"><span className="marketEyebrow"><Search size={14}/>YOUR LOCAL MARKET</span><h3>{data.items[index]?.item}</h3><p><MapPin size={13}/>{[comparison?.location?.city||data.city,data.country].filter(Boolean).join(', ')||'Choose your shopping area'} · Compare retailer listings</p></header>
-  {(!cardsOnly||refine)&&<form className="marketSearchForm" onSubmit={e=>{e.preventDefault();void request('POST',{index,preferences,location:{city:city.trim(),postalCode:postalCode.trim()}});}}>
+  {!onRequest&&(!cardsOnly||refine)&&<form className="marketSearchForm" onSubmit={e=>{e.preventDefault();void request('POST',{index,preferences,location:{city:city.trim(),postalCode:postalCode.trim()}});}}>
    <div className="marketLocationFields"><label>City<input required maxLength={100} value={city} onChange={e=>setCity(e.target.value)} placeholder="Where are you shopping?" autoComplete="address-level2"/></label><label>Postcode <span>optional</span><input maxLength={20} value={postalCode} onChange={e=>setPostalCode(e.target.value)} placeholder="Local area" autoComplete="postal-code"/></label></div>
    <label>What matters to you?<input maxLength={500} value={preferences} onChange={e=>setPreferences(e.target.value)} placeholder="Colour, finish, dimensions or budget…"/></label>
    <div className="marketSearchAction"><Button type="submit" disabled={busy||!unlocked||!city.trim()}>{busy?<LoaderCircle size={15} className="marketSpinner"/>:<Search size={15}/>} {busy?(pending==='PATCH'?'Saving selection…':'Searching local retailers…'):comparison?'Refresh product search':'Find nearby products'}</Button><small>{CREDIT_COST.search} credits per new search · cached results are reused</small></div>
    {!unlocked&&<p className="marketUpgrade">Product search is included in Basic and Pro. <a href="/purchase?plan=basic">See plans</a></p>}
   </form>}
-  {cardsOnly&&!refine&&<Button className="marketRefine" onClick={()=>setRefine(true)}><MapPin size={13}/>Change area or refine search</Button>}
+  {!onRequest&&cardsOnly&&!refine&&<Button className="marketRefine" onClick={()=>setRefine(true)}><MapPin size={13}/>Change area or refine search</Button>}
+  {onRequest&&<Button className="marketRefine" disabled={busy} onClick={()=>onRequest(`I want to refine the product search for ${data.items[index]?.item}. Ask me what I want to change about the location, finish, dimensions or budget before running another search.`,{estimateId:artifact.id,index})}><Search size={13}/>Refine in chat</Button>}
   {notice&&<p className="marketNotice" role="alert">{notice}</p>}
   {busy&&<p className="marketSearching" role="status">{pending==='PATCH'?'Saving your selected product to the bill…':'Checking product pages, pack prices and suitable retailers. Your bill stays unchanged until you choose a product.'}</p>}
   {!!options.length&&<>

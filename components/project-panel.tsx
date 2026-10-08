@@ -1,4 +1,5 @@
 "use client";
+import type {ChatRequest} from "@/lib/product-chat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Button } from "@base-ui-components/react/button";
@@ -47,6 +48,7 @@ export function ProjectPanel({
   unlocked,
   onClose,
   onAsk,
+  onRequest,
   onDirtyChange,
   onArtifacts,
 }: {
@@ -65,6 +67,7 @@ export function ProjectPanel({
   unlocked: boolean;
   onClose: () => void;
   onAsk: (text: string) => void;
+  onRequest?:ChatRequest;
   onDirtyChange: (dirty: boolean) => void;
   onArtifacts: (projectId: string, artifacts: Artifact[]) => void;
 }) {
@@ -418,6 +421,7 @@ export function ProjectPanel({
             )}
             {bill ? (
               <ProjectMaterials
+                onRequest={onRequest}
                 key={bill.id}
                 artifact={bill}
                 focusIndex={materialIndex}

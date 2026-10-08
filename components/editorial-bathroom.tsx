@@ -6,6 +6,7 @@ export const articles=[
 {slug:"small-bathroom-renovation-ideas",title:"12 Small Bathroom Renovation Ideas That Actually Work",kind:"Inspiration",time:"9 min",desc:"Practical layout, storage, tile and lighting ideas for compact bathrooms."},
 {slug:"best-bathroom-flooring",title:"Best Bathroom Flooring: Porcelain vs Vinyl vs Natural Stone",kind:"Materials",time:"11 min",desc:"Compare waterproofing, slip resistance, cost considerations and upkeep."},
 {slug:"bathroom-renovation-cost",title:"Bathroom Renovation Cost: How to Budget Without Guesswork",kind:"Budget",time:"10 min",desc:"A transparent room-by-room budgeting method and cost drivers."},
+{slug:"bathroom-renovation-checklist",title:"Bathroom Renovation Checklist: Plan Each Stage",kind:"Checklist",time:"8 min",desc:"A practical pre-renovation and handover checklist."},
 {slug:"bathroom-renovation-step-by-step",title:"Bathroom Renovation: A Step-by-Step Planning Guide",kind:"How-to",time:"12 min",desc:"A realistic renovation sequence, decision gates and common mistakes."},
 {slug:"best-small-bathroom-vanities",title:"Best Vanities for Small Bathrooms: What to Measure and Compare",kind:"Buying guide",time:"9 min",desc:"Sizing, storage and installation criteria before choosing a vanity."},
 {slug:"walk-in-shower-vs-bathtub",title:"Walk-in Shower vs Bathtub: Which Makes Sense for Your Home?",kind:"Comparison",time:"9 min",desc:"Space, access, maintenance and work-scope trade-offs explained."}

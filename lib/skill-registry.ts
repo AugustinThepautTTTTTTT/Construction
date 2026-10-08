@@ -4,7 +4,11 @@ import { visualSchema, estimateSchema } from "./room-artifacts";
 import { cadUpdateSchema } from "./cad/model";
 import { productLookupSchema } from "./material-research";
 import { constructionSchema } from "./construction-plan";
+import {openInspirationSchema} from "./inspiration-library";
+import {workUpdateSchema} from "./work-assistant";
 const specs = [
+ {folder:"inspiration",name:"open_inspiration_library",description:"Open the fixed interactive inspiration library for a suitable initial room request or an explicit request to revisit references. No image generation or search runs. Room is a filter; users choose their references themselves.",schema:openInspirationSchema},
+ {folder:"work-assistant",name:"update_work_plan",description:"Update ONE step of the existing owned working plan only after an explicit completion, reopening or requested saved instruction/check change. Use exact plan ID, zero-based index and workRevision. Null leaves checked/instructions/checks unchanged. Never mark progress from a question or hypothetical. Preserve other steps and professional constraints.",schema:workUpdateSchema},
   {
     folder: "find-product",
     name: "search_material_product",
@@ -60,6 +64,8 @@ export function skillInstructions() {
 }
 export function skillTools(options?: {
   layout: boolean;
+  inspiration?:boolean;
+  executionUpdate?:boolean;
   products?: boolean;
   hasBill?: boolean;
   paid?: boolean;
@@ -70,7 +76,9 @@ export function skillTools(options?: {
   return specs
     .filter(
       (s) =>
-        (options?.paid !== false || s.name === "prepare_room_visual") &&
+        (options?.paid !== false || ["prepare_room_visual","open_inspiration_library"].includes(s.name)) &&
+        (s.name !== "open_inspiration_library" || !options || options.inspiration === true) &&
+        (s.name !== "update_work_plan" || !options || options.executionUpdate === true) &&
         (options?.visuals !== false || s.name !== "prepare_room_visual") &&
         (options?.materials !== false || s.name !== "create_material_estimate") &&
         (options?.construction !== false || s.name !== "create_construction_plan") &&

@@ -1,3 +1,4 @@
+import {updateWorkPlan} from './work-assistant';
 import {z} from 'zod';
 import type {Queryable} from './repository';
 import {measurementsSchema,calculateEstimate,estimateSchema} from './room-artifacts';
@@ -12,8 +13,7 @@ export const projectEditSchema=z.discriminatedUnion('action',[
 export async function editProjectDeliverable(db:Queryable,owner:string,id:string,raw:unknown){
  const edit=projectEditSchema.parse(raw);
  if(edit.action==='step'){
-  const saved=await db.query(`UPDATE roomwise.artifacts SET data=jsonb_set(data,'{completedSteps}',COALESCE(data->'completedSteps','{}'::jsonb) || $1::jsonb) WHERE id=$2 AND user_id=$3 AND kind='construction' AND jsonb_array_length(data->'steps')>$4 RETURNING id`,[JSON.stringify({[edit.index]:edit.checked}),id,owner,edit.index]);
-  if(!saved.rows.length)throw new ProductSearchError('Work step not found.');return;
+  await updateWorkPlan(db,owner,undefined,id,{index:edit.index,checked:edit.checked,instructions:null,checks:null,note:edit.checked?'Marked complete':'Reopened by user'});return;
  }
  return editMaterialBill(db,owner,id,data=>{
   if(edit.action==='shopping'){

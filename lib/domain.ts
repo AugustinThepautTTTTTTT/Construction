@@ -9,6 +9,7 @@ export const briefSchema = z.object({
 export type Brief = z.infer<typeof briefSchema>;
 export type Message = {
   role: "user" | "assistant";
+  uiAction?:boolean;
   content: string;
   photoIds?: string[];
   artifactIds?: string[];

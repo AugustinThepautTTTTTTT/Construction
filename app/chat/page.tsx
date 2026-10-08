@@ -1,4 +1,5 @@
 "use client";
+import "@/components/inspiration-library.css";
 import "./chat.css";
 import "@/components/project-workspace.css";
 import "@/components/chat-artifact.css";
@@ -361,8 +362,8 @@ export default function ChatPage() {
     setSidebar(false);
     window.history.replaceState(null, "", "/chat");
   }
-  async function send(e: FormEvent) {
-    e.preventDefault();
+  async function send(e: FormEvent | null, suggested?:string) {
+    e?.preventDefault();
     following.current = true;
     if (cadDirty) {
       setNotice(
@@ -371,7 +372,7 @@ export default function ChatPage() {
       return;
     }
     const text =
-      input.trim() ||
+      suggested?.trim() || input.trim() ||
       (photos.length ? "Help me plan improvements to this room." : "");
     if (!text || busy || preparing || confirming || !cap.user) return;
     setBusy(true);
@@ -423,7 +424,7 @@ export default function ChatPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: p!.id, message: text, photoIds }),
+        body: JSON.stringify({ projectId: p!.id, message: text, photoIds, uiAction: suggested!==undefined }),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -462,7 +463,7 @@ export default function ChatPage() {
         }
         if (event.type === "artifact") {
           setProjectSignal((s) => s + 1);
-          setPanelFocus(
+          if(event.kind!=="inspiration")setPanelFocus(
             event.kind === "estimate"
               ? "materials"
               : event.kind === "construction"
@@ -814,6 +815,7 @@ export default function ChatPage() {
                 }}
               >
                 <div className="thread">
+                  {!!project?.messages.length&&<button className="journeyReturn" disabled={busy} onClick={()=>void send(null,"Show me the inspiration library so I can revisit my renovation direction. Do not generate a new design yet.")}>Explore or change inspiration</button>}
                   {project?.messages.map((m, i) => (
                     <div key={i} id={`turn-${project?.id}-${i}`}>
                       <ChatMessage
@@ -834,6 +836,7 @@ export default function ChatPage() {
                         }
                         unlocked={unlocked}
                         onArtifactsChanged={artifactsChanged}
+                        onRequest={text=>{if(!busy)void send(null,text);}}
                       />
                     </div>
                   ))}

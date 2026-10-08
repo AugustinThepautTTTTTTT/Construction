@@ -124,7 +124,7 @@ export type PriceSource = {
 export type Artifact = {
   project_id?: string;
   id: string;
-  kind: "plan" | "estimate" | "visual" | "construction";
+  kind: "plan" | "estimate" | "visual" | "construction" | "inspiration";
   data: any;
   status: "ready" | "queued" | "running" | "failed";
   model?: string;

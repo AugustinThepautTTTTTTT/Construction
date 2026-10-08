@@ -15,6 +15,7 @@ import {
   retailerName,
 } from "@/lib/material-presentation";
 import type { Artifact } from "@/lib/room-artifacts";
+import {InspirationLibrary} from "./inspiration-library";
 import { ProductComparisonView } from "./product-comparison";
 import { ConstructionPlanView } from "./construction-plan";
 
@@ -26,6 +27,7 @@ export function ChatArtifact({
   unlocked,
   onOpen,
   onChanged,
+  onRequest,
 }: {
   id: string;
   artifact?: Artifact;
@@ -34,6 +36,7 @@ export function ChatArtifact({
   unlocked: boolean;
   onOpen?: (id: string) => void;
   onChanged: () => void;
+  onRequest?:(message:string)=>void;
 }) {
   const [saved, setSaved] = useState<Artifact | null>(null),
     [notice, setNotice] = useState(""),
@@ -88,8 +91,9 @@ export function ChatArtifact({
       </div>
     );
   if (artifact.kind === "plan") return null;
+  if (artifact.kind === "inspiration") return <InspirationLibrary key={artifact.id} artifact={artifact} onChanged={onChanged} onRequest={onRequest}/>;
   if (artifact.kind === "construction")
-    return <ConstructionPlanView artifact={artifact} onOpen={onOpen} onChanged={onChanged} compact chat />;
+    return <ConstructionPlanView artifact={artifact} onOpen={onOpen} onChanged={onChanged} onRequest={onRequest} compact chat />;
   if (artifact.kind === "estimate" && productView?.type === "products")
     return (
       <ProductComparisonView
@@ -255,6 +259,7 @@ function ChatBill({
   artifact: Artifact;
   onOpen?: (id: string) => void;
   onChanged: () => void;
+  onRequest?:(message:string)=>void;
   unlocked: boolean;
 }) {
   const [marketIndex,setMarketIndex] = useState<number|null>(null);

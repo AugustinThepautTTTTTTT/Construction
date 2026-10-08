@@ -1,3 +1,5 @@
+import {openInspirationSchema,inspirationProfile} from "./inspiration-library";
+import {workUpdateSchema,updateWorkPlan} from "./work-assistant";
 import {requirePaid} from "./credits";
 import { cadUpdateSchema, cadPlan } from "./cad/model";
 import { getCad, saveCad } from "./cad/store";
@@ -21,8 +23,10 @@ export async function runRoomTool(
   projectId: string,
   name: string,
   args: unknown,
-  options?: { productSearch?: boolean; visuals?: boolean; revisionSourceId?: string; materials?: boolean; construction?: boolean; layout?: boolean },
+  options?: { inspiration?:boolean;executionUpdate?:boolean; productSearch?: boolean; visuals?: boolean; revisionSourceId?: string; materials?: boolean; construction?: boolean; layout?: boolean },
 ) {
+  if(name==='open_inspiration_library'&&options?.inspiration===false)throw new Error('Inspiration was not requested.');
+  if(name==='update_work_plan'&&options?.executionUpdate!==true)throw new Error('Work-plan update was not requested.');
   if(name==='search_material_product'&&options?.productSearch===false) throw new ProductSearchError('Product research was not requested, or this turn already saved a comparison.');
   if(name==='prepare_room_visual'&&options?.visuals===false)
     throw new Error('This request is for materials or work instructions. Save those requested deliverables; do not create an image.');
@@ -32,7 +36,20 @@ export async function runRoomTool(
     [projectId, owner],
   );
   if (!owned.rows.length) throw new Error("Room not found.");
-  if (["search_material_product","update_room_cad","create_material_estimate","create_construction_plan"].includes(name)) await requirePaid(db, owner);
+  if (["update_work_plan","search_material_product","update_room_cad","create_material_estimate","create_construction_plan"].includes(name)) await requirePaid(db, owner);
+  if(name==='open_inspiration_library'){
+    const {room}=openInspirationSchema.parse(args);
+    const found=await db.query("SELECT id FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='inspiration' ORDER BY created_at DESC LIMIT 1",[projectId,owner]);
+    const id=found.rows[0]?.id||randomUUID();
+    if(found.rows.length)await db.query("UPDATE roomwise.artifacts SET data=jsonb_set(data,'{room}',$1::jsonb) WHERE id=$2 AND user_id=$3",[JSON.stringify(room),id,owner]);
+    else await db.query("INSERT INTO roomwise.artifacts(id,user_id,project_id,kind,data,model) VALUES($1,$2,$3,'inspiration',$4::jsonb,'fixed-library')",[id,owner,projectId,JSON.stringify({room,selectedIds:[],confirmed:false})]);
+    return {id,kind:'inspiration',summary:'Fixed inspiration library opened in chat. Invite the client to choose up to three references or skip. No images generated and no design credits spent. Do not select for them or generate a design in this turn.'};
+  }
+  if(name==='update_work_plan'){
+    const update=workUpdateSchema.parse(args);
+    const data=await updateWorkPlan(db,owner,projectId,update.planId,update,update.expectedRevision);
+    return {id:update.planId,kind:'construction',workRevision:data.workRevision,completedSteps:data.completedSteps,summary:'Existing work plan updated and saved. Explain the recorded changes briefly and answer their technical question using the current steps. This is not a new plan.'};
+  }
   if (name === "search_material_product") {
     const lookup = productLookupSchema.parse(args);
     const bill = await db.query(
@@ -127,7 +144,9 @@ export async function runRoomTool(
       if (!source.rows.length) throw new Error("The previous concept is unavailable for this room photo. Do not start over.");
       revisionSourceId = source.rows[0].id;
     }
-    data = {...visual, ...(options?.visuals === true ? {visualAuthorized:true} : {}), ...(revisionSourceId ? {revisionSourceId} : {})};
+    const references=await db.query("SELECT data FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='inspiration' AND data->>'confirmed'='true' ORDER BY created_at DESC LIMIT 1",[projectId,owner]);
+    const profile=references.rows[0]?.data?.selectedIds?.length?inspirationProfile(references.rows[0].data.selectedIds):undefined;
+    data = {...visual,...(profile?{inspirationProfile:profile}:{}), ...(options?.visuals === true ? {visualAuthorized:true} : {}), ...(revisionSourceId ? {revisionSourceId} : {})};
   } else if (name === "create_material_estimate") {
     const estimate = estimateSchema.parse(args);
 

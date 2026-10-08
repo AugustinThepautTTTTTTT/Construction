@@ -28,7 +28,7 @@ test('the carousel renders a verified store, explicit project cost and keyboard 
  const source={index:0,url:'https://store.example/product/paint',title:'Washable paint',price:20,note:'Check delivery',purchaseUnit:'litre',quantityPerPack:1};
  const artifact:any={id:'bill',data:{...estimate,productComparisons:{0:{products:[source,{...source,url:'https://second.example/product/paint',title:'Alternative paint'}],notice:'Check stock',checkedAt:new Date().toISOString()}}}};
  const html=renderToStaticMarkup(React.createElement(ProductComparisonView,{artifact,index:0,onChanged:()=>{}}));
- assert.match(html,/aria-roledescription="carousel"/);assert.match(html,/Previous product/);assert.match(html,/Next product/);assert.match(html,/Find nearby products|Refresh product search/);assert.match(html,/City/);assert.match(html,/Postcode/);assert.match(html,/4 credits/);assert.match(html,/For your project/);assert.match(html,/Add to BOM/);assert.match(html,/aria-hidden="true"/);
+ assert.match(html,/aria-roledescription="carousel"/);assert.match(html,/Previous product/);assert.match(html,/Next product/);assert.match(html,/Find nearby products|Refresh product search/);assert.match(html,/City/);assert.match(html,/Postcode/);assert.match(html,/4 credits/);assert.match(html,/For your project/);assert.match(html,/Add to BOM/);assert.doesNotMatch(html,/marketCardShell side|inert=""/);
 });
 test('location inputs validate before a charged search',async()=>{
  const {productSearchLocationSchema}=await import('../lib/material-research');

@@ -277,7 +277,7 @@ test("a saved product-result message renders comparison cards without repeating 
   assert.ok(html.includes("Real paint"));
   assert.ok(html.includes("Alternative paint"));
   assert.ok(html.includes("Add to BOM"));
-  assert.ok(html.includes("cdn.shop.com/paint.jpg"));
+  assert.ok(html.includes("/product-image?index=0"));
   assert.equal(html.includes("Materials total"), false);
   assert.equal(html.includes("Full bill"), false);
   const legacy = renderToStaticMarkup(

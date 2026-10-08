@@ -6,6 +6,7 @@ import { Check, ExternalLink, Search, Package, MapPin, ChevronLeft, ChevronRight
 import { calculateEstimate, type Artifact, type PriceSource } from "@/lib/room-artifacts";
 import { applyProductPacks } from "@/lib/price-research";
 import { money, retailerName } from "@/lib/material-presentation";
+import {ProductThumbnail} from "./product-thumbnail";
 import { CREDIT_COST } from "@/lib/credits";
 
 export function ProductComparisonView({artifact,index,onChanged,unlocked=true,cardsOnly=false,onRequest}:{artifact:Artifact;index:number;onChanged:()=>void|Promise<void>;unlocked?:boolean;cardsOnly?:boolean;onRequest?:ChatRequest}) {
@@ -14,7 +15,8 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
  const [preferences,setPreferences]=useState(saved?.preferences||""),[city,setCity]=useState(saved?.location?.city||data.city||""),[postalCode,setPostalCode]=useState(saved?.location?.postalCode||"");
  const [pending,setPending]=useState<"POST"|"PATCH"|null>(null),[notice,setNotice]=useState(""),[local,setLocal]=useState<any>(null),[active,setActive]=useState(0),[refine,setRefine]=useState(false);
  const busy=pending!==null;
- const touch=useRef<{x:number;y:number}|null>(null);
+ const carousel=useRef<HTMLDivElement>(null);
+ const [visible,setVisible]=useState(3);
  useEffect(()=>{setLocal(null);setActive(0);setPreferences(saved?.preferences||"");setCity(saved?.location?.city||data.city||"");setPostalCode(saved?.location?.postalCode||"");},[artifact.id,index]);
  const comparison=local||saved,selected=data.priceSources?.find((p:PriceSource)=>p.index===index);
  const options=(comparison?.products||[]).slice(0,6).map((source:PriceSource)=>{
@@ -22,7 +24,13 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
   return {source,row,total:Math.round(row.quantity*source.price*100)/100};
  });
  const current=Math.min(active,Math.max(0,options.length-1));
- function move(direction:number){if(options.length)setActive(value=>(value+direction+options.length)%options.length);}
+ useEffect(()=>{
+  const element=carousel.current;if(!element)return;
+  const measure=()=>{const first=element.firstElementChild as HTMLElement|null;if(first)setVisible(Math.max(1,Math.floor((element.clientWidth+18)/(first.offsetWidth+16))));};
+  measure();const observer=new ResizeObserver(measure);observer.observe(element);return()=>observer.disconnect();
+ },[options.length]);
+ function move(direction:number){const element=carousel.current,first=element?.firstElementChild as HTMLElement|null;if(element&&first)element.scrollBy({left:direction*(first.offsetWidth+16),behavior:'smooth'});}
+ function trackScroll(){const element=carousel.current,first=element?.firstElementChild as HTMLElement|null;if(element&&first)setActive(Math.round(element.scrollLeft/(first.offsetWidth+16)));}
  async function request(method:"POST"|"PATCH",body:unknown){
   if(busy)return;setPending(method);setNotice("");
   try{
@@ -45,25 +53,24 @@ export function ProductComparisonView({artifact,index,onChanged,unlocked=true,ca
   {notice&&<p className="marketNotice" role="alert">{notice}</p>}
   {busy&&<p className="marketSearching" role="status">{pending==='PATCH'?'Saving your selected product to the bill…':'Checking product pages, pack prices and suitable retailers. Your bill stays unchanged until you choose a product.'}</p>}
   {!!options.length&&<>
-   <div className="marketCarousel" role="region" aria-roledescription="carousel" aria-label="Retailer product alternatives" tabIndex={0} onKeyDown={e=>{if(e.key==='ArrowRight'){e.preventDefault();e.currentTarget.focus({preventScroll:true});move(1);}if(e.key==='ArrowLeft'){e.preventDefault();e.currentTarget.focus({preventScroll:true});move(-1);}}} onTouchStart={e=>{const t=e.touches[0];touch.current={x:t.clientX,y:t.clientY};}} onTouchEnd={e=>{const start=touch.current,t=e.changedTouches[0];touch.current=null;if(start&&Math.abs(t.clientX-start.x)>45&&Math.abs(t.clientX-start.x)>Math.abs(t.clientY-start.y))move(t.clientX<start.x?1:-1);}}>
+   <div ref={carousel} className="marketCarousel" role="region" aria-roledescription="carousel" aria-label="Retailer product alternatives" tabIndex={0} onScroll={trackScroll} onKeyDown={e=>{if(e.key==='ArrowRight'){e.preventDefault();move(1);}if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}}}>
     {options.map(({source,row,total}:{source:PriceSource;row:any;total:number},position:number)=>{
-     const delta=(position-current+options.length)%options.length,offset=delta===0?0:delta===1?1:delta===options.length-1?-1:2;
-     if(Math.abs(offset)>1)return null;
-     const focused=offset===0,isSelected=selected?.url===source.url;
-     return <div className={`marketCardShell ${focused?'focused':'side'}`} style={{'--card-offset':offset} as React.CSSProperties} key={source.url}>
-      <article className={`marketProductCard ${isSelected?'selected':''}`} aria-roledescription="slide" aria-label={`${position+1} of ${options.length}: ${source.title}`} aria-hidden={!focused} inert={!focused?true:undefined}>
+     const isSelected=selected?.url===source.url;
+     return <div className="marketCardShell" key={source.url}>
+      <article className={`marketProductCard ${isSelected?'selected':''}`} aria-roledescription="slide" aria-label={`${position+1} of ${options.length}: ${source.title}`}>
        <div className="marketStore"><span>{retailerName(source.url)}</span>{isSelected?<small><Check size={12}/>IN YOUR BILL</small>:<small>RETAILER LISTING</small>}</div>
-       <div className="marketProductImage">{source.imageUrl&&<img src={source.imageUrl} alt={source.title} loading="lazy" referrerPolicy="no-referrer" onError={e=>{e.currentTarget.style.display='none';}}/>}<Package size={44}/></div>
+       <ProductThumbnail billId={artifact.id} index={index} position={position} source={source}/>
+
        <div className="marketProductInfo"><h4>{source.title}</h4><div className="marketPrice"><strong>{money(source.price,data.currency)}</strong><span>per {row.unit}</span></div><p className="marketProjectTotal">For your project <b>{money(total,data.currency)}</b><span>{row.quantity} {row.unit}</span></p>
         <details><summary>Fit, pack size & delivery</summary><p>{source.note}</p><p>{source.quantityPerPack&&source.quantityPerPack!==1?`${source.quantityPerPack} ${data.quantityItems?.[index]?.unit||data.items[index].unit} per ${row.unit}`:source.coveragePerUnit?`${source.coveragePerUnit} basis units of coverage per ${row.unit}`:'Check pack size and coverage on the product page.'}</p><p>Local stock, collection and delivery costs need retailer confirmation.</p></details>
         <div className="marketProductActions"><a href={source.url} target="_blank" rel="noopener noreferrer">View at store<ExternalLink size={13}/></a><Button disabled={busy||isSelected} onClick={()=>void request('PATCH',{index,url:source.url})}>{isSelected?<><Check size={13}/>Selected</>:'Add to BOM'}</Button></div>
        </div>
       </article>
-      {!focused&&<button className="marketSideSelect" tabIndex={-1} aria-label={`Show ${source.title}`} onClick={()=>setActive(position)}/>}
+
      </div>;
     })}
    </div>
-   <nav className="marketNavigation" aria-label="Product carousel controls"><Button aria-label="Previous product" disabled={options.length<2} onClick={()=>move(-1)}><ChevronLeft size={19}/></Button><span aria-live="polite" aria-atomic="true">{current+1} / {options.length}</span><Button aria-label="Next product" disabled={options.length<2} onClick={()=>move(1)}><ChevronRight size={19}/></Button></nav>
+   <nav className="marketNavigation" aria-label="Product carousel controls"><Button aria-label="Previous product" disabled={current===0} onClick={()=>move(-1)}><ChevronLeft size={19}/></Button><span aria-live="polite" aria-atomic="true">{current+1}{Math.min(options.length,current+visible)>current+1?`–${Math.min(options.length,current+visible)}`:""} / {options.length}</span><Button aria-label="Next product" disabled={current+visible>=options.length} onClick={()=>move(1)}><ChevronRight size={19}/></Button></nav>
    <p className="marketCount">{new Set(options.map((option:any)=>retailerName(option.source.url))).size} stores compared · Swipe or use the arrows</p>
   </>}
   {!busy&&comparison&&!options.length&&<div className="marketEmpty"><Package size={28}/><strong>No verified matches yet</strong><p>Try a different finish, a clearer specification or a wider shopping area. Your bill has not changed.</p></div>}

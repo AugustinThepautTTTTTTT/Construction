@@ -121,7 +121,7 @@ export async function searchMaterialProduct(
       );
     await Promise.all(
       products.map(async (product) => {
-        const image = await fetchProductImage(product.url);
+        const image = product.imageUrl || await fetchProductImage(product.url);
         if (image) product.imageUrl = image;
       }),
     );

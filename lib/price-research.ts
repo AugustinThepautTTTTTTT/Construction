@@ -14,6 +14,7 @@ export const priceResearchSchema = z
             price: z.number().positive().max(100000),
             url: z.string().url(),
             title: z.string().max(200),
+            imageUrl:z.string().url().max(2000).nullable().optional(),
             currency: z.string().regex(/^[A-Z]{3}$/),
             unit: z.enum(["pot","pack","bag","bottle","piece","roll","box","litre","l","m2","kg","m","set"]),
             note: z.string().max(500),
@@ -101,6 +102,7 @@ export function vettedPrices(
     seen.add(options?.allowAlternatives ? product.url : String(product.index));
     return [
       {
+        ...(product.imageUrl&&findings.includes(product.imageUrl)&&/^https:\/\//i.test(product.imageUrl)?{imageUrl:product.imageUrl}:{}),
         index: product.index,
         coveragePerUnit: product.coveragePerUnit,
         purchaseUnit: product.unit,

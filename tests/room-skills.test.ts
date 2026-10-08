@@ -246,7 +246,7 @@ test("price research retains only retrieved local retailer URLs with matching cu
 });
 test("skills expose validated tools and the image brief locks original structural geometry", () => {
   const tools = skillTools();
-  assert.equal(tools.length, 5);
+  assert.equal(tools.length, 8);
   assert.ok(!tools.some(t=>t.name==="create_room_plan"));
   assert.ok(tools.some(t=>t.name==="create_construction_plan"));
   for (const tool of tools) {

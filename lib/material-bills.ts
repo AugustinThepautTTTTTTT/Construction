@@ -11,7 +11,7 @@ export function isProductLookupBill(bill: Artifact) {
 // Older search turns incorrectly saved a tiny new bill. Keep those artifacts for
 // history, but keep the full/linked bill as the project shopping authority.
 export function materialBills(artifacts: Artifact[]) {
-  const bills = artifacts.filter((a) => a.kind === "estimate"),
+  const bills = artifacts.filter((a) => a.kind === "estimate" && !a.data.shoppingDraft),
     linked = artifacts.find(
       (a) =>
         a.kind === "construction" &&

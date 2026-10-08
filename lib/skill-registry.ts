@@ -1,10 +1,16 @@
+import {newProductSchema} from './product-shopping';
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { visualSchema, estimateSchema } from "./room-artifacts";
 import { cadUpdateSchema } from "./cad/model";
 import { productLookupSchema } from "./material-research";
 import { constructionSchema } from "./construction-plan";
+import {openInspirationSchema} from "./inspiration-library";
+import {workUpdateSchema} from "./work-assistant";
 const specs = [
+ {folder:"find-product",name:"search_new_product",description:"Search one requested material or furnishing that is missing from the complete bill, without changing the bill. Never substitute a similar row such as floor cleaner for tiles. Set estimateId to the existing complete bill ID, or null when none exists. Supply the actual requested item, specification, original quantity unit, quantity only if established (otherwise null), and explicit preferences. The user can select Add to BOM afterward.",schema:newProductSchema},
+ {folder:"inspiration",name:"open_inspiration_library",description:"Open the fixed interactive inspiration library for a suitable initial room request or an explicit request to revisit references. No image generation or search runs. Room is a filter; users choose their references themselves.",schema:openInspirationSchema},
+ {folder:"work-assistant",name:"update_work_plan",description:"Update ONE step of the existing owned working plan only after an explicit completion, reopening or requested saved instruction/check change. Use exact plan ID, zero-based index and workRevision. Null leaves checked/instructions/checks unchanged. Never mark progress from a question or hypothetical. Preserve other steps and professional constraints.",schema:workUpdateSchema},
   {
     folder: "find-product",
     name: "search_material_product",
@@ -60,6 +66,8 @@ export function skillInstructions() {
 }
 export function skillTools(options?: {
   layout: boolean;
+  inspiration?:boolean;
+  executionUpdate?:boolean;
   products?: boolean;
   hasBill?: boolean;
   paid?: boolean;
@@ -70,12 +78,14 @@ export function skillTools(options?: {
   return specs
     .filter(
       (s) =>
-        (options?.paid !== false || s.name === "prepare_room_visual") &&
+        (options?.paid !== false || ["prepare_room_visual","open_inspiration_library"].includes(s.name)) &&
+        (s.name !== "open_inspiration_library" || !options || options.inspiration === true) &&
+        (s.name !== "update_work_plan" || !options || options.executionUpdate === true) &&
         (options?.visuals !== false || s.name !== "prepare_room_visual") &&
         (options?.materials !== false || s.name !== "create_material_estimate") &&
         (options?.construction !== false || s.name !== "create_construction_plan") &&
         (options?.layout !== false || s.name !== "update_room_cad") &&
-        (options?.products !== false || s.name !== "search_material_product") &&
+        (options?.products !== false || !["search_material_product","search_new_product"].includes(s.name)) &&
         (!(options?.products && options?.hasBill) ||
           s.name !== "create_material_estimate"),
     )

@@ -1,0 +1,6 @@
+---
+name: inspiration
+description: Help users choose a direction from Archicova's fixed interactive inspiration collection.
+---
+For a suitable first renovation description, open the fixed library with the relevant room filter. Users choose up to three references themselves or skip. Existing designs and execution questions should not trigger onboarding again; an explicit request to return to inspiration may reopen it at any time. The journey is guidance, never a lock. Do not generate images, create materials, research products or start a plan when opening the library.
+Confirmed reference selections describe a renovation preference profile, not the actual room. Carry its palette, materials and direction into the next requested design, while preserving original room architecture, retained elements, latest choices and budget. An explicit current request overrides reference preferences. Do not infer measurements, feasibility or product availability from references. Once selections are saved, invite a room photo and an explicit design request. Do not copy the reference room's shape or fixtures into the user's room. Browsing and saving use no AI credits; normal chat and requested designs retain their usual credit costs.

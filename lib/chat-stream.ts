@@ -1,6 +1,6 @@
 export type ChatEvent =
   | {type:"cad";projectId:string;revision:number}
-  | { type: "artifact"; id: string;kind?:"visual"|"estimate"|"construction";view?:"products";index?:number }
+  | { type: "artifact"; id: string;kind?:"visual"|"estimate"|"construction"|"inspiration";view?:"products";index?:number }
   | { type: "status"; message: string }
   | { type: "paragraph"; text: string }
   | { type: "done" }

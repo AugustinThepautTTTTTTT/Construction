@@ -3,8 +3,11 @@ import "./chat.css";
 import "@/components/project-workspace.css";
 import "@/components/chat-artifact.css";
 import "@/components/product-market.css";
+import "@/components/inspiration-library.css";
+import "@/components/conversation-artifacts.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
+import type {ProductTarget} from "@/lib/product-chat";
 import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";
 import { FolderOpen, Zap } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -165,7 +168,7 @@ export default function ChatPage() {
           .catch(() => {});
         setActive(selected);
         if (selected && !q.get("folder"))
-          setProjectPanelOpen(window.matchMedia("(min-width:1021px)").matches);
+          setProjectPanelOpen(false);
         if (q.get("folder")) setSelectedFolder(q.get("folder")!);
         setReady(true);
         let draft: unknown;
@@ -274,7 +277,7 @@ export default function ChatPage() {
     setSelectedFolder("");
     setActive(id);
     setPanelFocus("visuals");
-    setProjectPanelOpen(window.matchMedia("(min-width:1021px)").matches);
+    setProjectPanelOpen(false);
     setHighlight(null);
     setInput("");
     setNotice("");
@@ -361,8 +364,8 @@ export default function ChatPage() {
     setSidebar(false);
     window.history.replaceState(null, "", "/chat");
   }
-  async function send(e: FormEvent) {
-    e.preventDefault();
+  async function send(e: FormEvent | null, suggested?:string,productTarget?:ProductTarget) {
+    e?.preventDefault();
     following.current = true;
     if (cadDirty) {
       setNotice(
@@ -371,7 +374,7 @@ export default function ChatPage() {
       return;
     }
     const text =
-      input.trim() ||
+      suggested?.trim() || input.trim() ||
       (photos.length ? "Help me plan improvements to this room." : "");
     if (!text || busy || preparing || confirming || !cap.user) return;
     setBusy(true);
@@ -423,7 +426,7 @@ export default function ChatPage() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: p!.id, message: text, photoIds }),
+        body: JSON.stringify({ projectId: p!.id, message: text, photoIds, uiAction: suggested!==undefined, productTarget }),
       });
       if (!response.ok) {
         const data = await response.json();
@@ -462,7 +465,7 @@ export default function ChatPage() {
         }
         if (event.type === "artifact") {
           setProjectSignal((s) => s + 1);
-          setPanelFocus(
+          if(event.kind!=="inspiration")setPanelFocus(
             event.kind === "estimate"
               ? "materials"
               : event.kind === "construction"
@@ -814,6 +817,7 @@ export default function ChatPage() {
                 }}
               >
                 <div className="thread">
+                  {!!project?.messages.length&&<button className="journeyReturn" disabled={busy} onClick={()=>void send(null,"Show me the inspiration library so I can revisit my renovation direction. Do not generate a new design yet.")}>Explore or change inspiration</button>}
                   {project?.messages.map((m, i) => (
                     <div key={i} id={`turn-${project?.id}-${i}`}>
                       <ChatMessage
@@ -834,6 +838,7 @@ export default function ChatPage() {
                         }
                         unlocked={unlocked}
                         onArtifactsChanged={artifactsChanged}
+                        onRequest={(text,target)=>{if(!busy)void send(null,text,target);}}
                       />
                     </div>
                   ))}
@@ -900,6 +905,7 @@ export default function ChatPage() {
           onArtifacts={receiveArtifacts}
           onDirtyChange={setCadDirty}
           onClose={() => setProjectPanelOpen(false)}
+          onRequest={(text,target)=>{if(!busy){setProjectPanelOpen(false);void send(null,text,target);}}}
           onAsk={(text) => {
             setInput(text);
             setSidebar(false);

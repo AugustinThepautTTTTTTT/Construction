@@ -1,4 +1,5 @@
 "use client";
+import type {ChatRequest} from "@/lib/product-chat";
 import React, { memo, useEffect, useRef, useState } from "react";
 import { Button } from "@base-ui-components/react/button";
 import { Check } from "lucide-react";
@@ -10,6 +11,7 @@ import type { Artifact } from "@/lib/room-artifacts";
 import type { Message } from "@/lib/domain";
 function MessageView({
   message,
+  onRequest,
   onOpenArtifact,
   artifacts,
   unlocked,
@@ -17,6 +19,7 @@ function MessageView({
   repeatedArtifactIds = [],
 }: {
   message: Message;
+  onRequest?:ChatRequest;
   repeatedArtifactIds?: string[];
   onOpenArtifact?: (id: string) => void;
   artifacts: Artifact[];
@@ -95,6 +98,7 @@ function MessageView({
             unlocked={unlocked}
             onOpen={onOpenArtifact}
             onChanged={onArtifactsChanged}
+            onRequest={onRequest}
           />
         ))}
         {message.status === "failed" && (

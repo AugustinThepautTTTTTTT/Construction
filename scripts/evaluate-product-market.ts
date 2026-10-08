@@ -7,7 +7,7 @@ import {retrievedUrls,vettedPrices} from '../lib/price-research';
 async function main(){
  if(process.env.ARCHICOVA_MARKET_EVAL!=='1'){console.log('Product market evaluation: opt-in disabled');return;}
  assert.equal(process.env.VERCEL_ENV,'preview');assert.ok(process.env.OPENAI_API_KEY);assert.ok(process.env.OPENAI_MODEL);
- const estimate=estimateSchema.parse({title:'Synthetic market check',country:'FR',city:'Mulhouse',currency:'EUR',items:[{item:'Interior wall paint',specification:'White washable matt paint for an interior living room',basis:'manual',manualQuantity:5,unit:'litre',coveragePerUnit:null,coats:1,waste:0,priceLow:15,priceHigh:35}],assumptions:[],exclusions:[]});
+ const estimate=estimateSchema.parse({title:'Synthetic market check',country:'FR',city:'Mulhouse',currency:'EUR',items:[{item:'Dining chair',specification:'Wooden dining chair for a living room, sold individually',basis:'manual',manualQuantity:3,unit:'piece',coveragePerUnit:null,coats:1,waste:0,priceLow:50,priceHigh:200}],assumptions:[],exclusions:[]});
  const location=resolveSearchLocation(estimate,{city:'Mulhouse',postalCode:'68100'}),client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,maxRetries:0,timeout:90000});
  console.log('Product market evaluation running: one synthetic item in Mulhouse, FR');
  const search=await runProductSearch(client,productSearchRequest(estimate,0,process.env.OPENAI_MODEL!,'',location));assert.equal(search.status,'completed');

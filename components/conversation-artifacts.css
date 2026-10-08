@@ -29,3 +29,5 @@
 @media(max-width:700px){.chatKit.projectWorkspace .thread{width:calc(100% - 48px);margin-left:16px}}
 @media(prefers-reduced-motion:reduce){.chatKit .productMarket .marketCarousel{scroll-behavior:auto}}
 .chatKit .productMarket .marketStore>small{font-size:9px}.chatKit .productMarket .marketProjectTotal{font-size:12px}.chatKit .productMarket .marketProjectTotal>span,.chatKit .productMarket .marketPrice>span{font-size:11px}.chatKit .productMarket .marketProductInfo details{font-size:12px;max-height:none;overflow:visible}.chatKit .productMarket .marketFootnote{font-size:11px}
+
+.chatKit.projectWorkspace .productMarket>.marketRefine{display:flex;width:fit-content;max-width:768px;margin-left:max(0px,calc((100% - 768px)/2));margin-right:0}

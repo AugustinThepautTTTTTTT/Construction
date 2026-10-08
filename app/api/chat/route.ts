@@ -145,8 +145,8 @@ export async function POST(r: NextRequest) {
         `\nHARNESS: Reply in the user’s language${routing.semantic ? ` (${intent.language})` : ""}. Intent: ${JSON.stringify(intent)}. ${intent.clarify ? "Ask one focused clarification. Do not spend image/search credits or produce a deliverable until the user clarifies." : ""} ${revisionUnavailable ? "The referenced concept is not ready or does not match the current photo. Ask the user to wait or identify/upload the intended room; do not restart from scratch." : ""} ${revision ? `IMAGE REVISION: Edit saved concept ${revision.id}. Original photo ${revision.data.sourcePhotoId} remains the geometry reference. Preserve all successful prior design choices and change ONLY the user’s requested details. Prior concept: ${JSON.stringify(revision.data)}. Describe this as a revision, not a new room.` : ""} ${supportCase ? `SUPPORT CASE SAVED: ${supportCase}. Acknowledge the dissatisfaction and say the Archicova team will investigate this recorded report. Include the short reference ${supportCase.slice(0,8)}. Do not promise a response time, refund, notification, or say an investigation has already started. Continue actionable design fixes when requested.` : intent.complaint ? "The support case could not be saved. Acknowledge the issue; do not claim it was escalated, and suggest retrying." : ""}\nPUBLIC PLAN FACTS: ${JSON.stringify(PLANS)}. Current plan: ${account.plan}. Remaining credits: ${account.credits}. Credit costs: ${JSON.stringify(CREDIT_COST)}. Free gives 10 credits once, never monthly. Basic and Pro include materials, work plans, CAD and requested product research. Basic is the default paid recommendation for one room; Pro is for multiple rooms, frequent revisions or professional use. Recommend Free to explore when appropriate, Basic for implementation, Pro for higher usage. Basic offers the same tools as Pro with fewer credits. Explain fit and value honestly; never disparage the service, invent discounts, guarantee renovation savings, push an unnecessary upgrade, or claim a plan was changed. Link /purchase?plan=basic or /purchase?plan=pro for an upgrade. Existing Pro users do not need another upgrade.\n` +
         `\nCURRENT REQUEST: ${inspiration ? "The client is choosing inspiration. Open the fixed interactive library, do not generate a visual or request a photo yet." : intent.visual !== "none" && !visuals ? "A visual was requested but its source is unavailable or needs clarification. Ask for the missing original photo or clarification, or wait for the pending concept; never restart silently." : visuals ? revision ? "A revision is requested. Generate it automatically from the saved concept using the original room photo as a geometry reference." : "A new visual is requested; generate it automatically from an original room photo." : "No new image is requested. Do not create or update a visual, even if photos or earlier concepts exist. Use them only as reference for the requested answer, BOM or work plan."} ${requested.materials ? "Save the requested complete bill of materials." : ""} ${requested.construction ? "Save the requested work instructions linked to the bill of materials." : ""}\n` +
         `\nPROJECT MODE: ${layout ? "Layout / geometry: use the saved CAD when a spatial change is requested." : "Refurbishment: do not create or update CAD. Match the current request. For quantities use existing CAD or explicit provisional manual quantities; never create a 2D plan. Construction plans are ordered work steps linked to the BOM, not geometry."}\n` +
-        (products && hasBill
-          ? "\nPRODUCT SEARCH MODE: Use search_material_product with the existing saved BOM ID and its exact row index. Do not create, replace or shorten a BOM for a shopping comparison. If the requested material is missing, explain that it needs adding to the existing bill first. Product search is available in this conversation; call the tool before claiming real references or availability. Only a user selection updates that row.\n"
+        (products
+          ? "\nPRODUCT SEARCH MODE: Use search_material_product with the existing saved BOM ID and its exact row index. Do not create, replace or shorten a BOM for a shopping comparison. If the requested material is missing, call search_new_product with the existing complete bill ID. Search the actual requested item immediately and offer Add to BOM afterward. Never search a merely similar name or unrelated consumable (floor tiles are not floor cleaner). The saved bill remains unchanged until selection. Product search is available in this conversation; call the tool before claiming real references or availability. Only a user selection updates that row.\n"
           : "") +
         (productTarget ? `\nSELECTED PRODUCT ROW: ${JSON.stringify(productTarget)}. This target is verified as belonging to this room. Search ONLY that bill and zero-based row when a product search is requested. Ask missing location/specification questions in chat; do not ask the user to fill a search form. Do not search when the current request explicitly asks you to clarify preferences first.\n` : "") +
         "\nUse the room tools for requested deliverables. Never show raw JSON or claim an artifact exists without a successful tool result.\n" +
@@ -255,7 +255,7 @@ export async function POST(r: NextRequest) {
                           inspiration:inspiration&&!inspirationSaved,
                           executionUpdate:executionUpdate&&!workUpdated,
                           layout: layout && !cadSaved,
-                          products: products && (hasBill || billSaved) && !searchSaved,
+                          products: products && !searchSaved && !intent.clarify,
                           materials: materialsAllowed,
                           construction: requested.construction && !workSaved,
                           hasBill,
@@ -263,7 +263,7 @@ export async function POST(r: NextRequest) {
                           visuals: visuals && !visualSaved,
                         })
                       : [],
-                  ...(requiredTool ? {tool_choice:{type:'function' as const,name:requiredTool}} : {}),
+                  ...(requiredTool ? {tool_choice:{type:'function' as const,name:requiredTool}} : products && !searchSaved && !intent.clarify && market?.country && market.currency && account.plan!=='free' && round<4 ? {tool_choice:'required' as const} : {}),
                   parallel_tool_calls: false,
                 });
                 let final: OpenAI.Responses.Response | undefined;
@@ -325,7 +325,7 @@ export async function POST(r: NextRequest) {
                           ? "Preparing your construction plan…"
                           : call.name === "create_material_estimate"
                             ? "Calculating material quantities…"
-                            : call.name === "search_material_product"
+                            : ["search_material_product","search_new_product"].includes(call.name)
                               ? "Comparing products for your selected item…"
                               : "Preparing your room concept…",
                   });
@@ -339,6 +339,7 @@ export async function POST(r: NextRequest) {
                       throw new ProductSearchError(
                         "Research the requested row in the existing BOM using search_material_product. A comparison cannot replace the bill.",
                       );
+                    if(call.name==='search_new_product' && productTarget)throw new ProductSearchError('Use the exact selected bill row for this button request.');
                     if(call.name==='search_material_product' && productTarget){
                       const args=JSON.parse(call.arguments);
                       if(args.estimateId!==productTarget.estimateId || args.index!==productTarget.index)throw new ProductSearchError('Search the exact selected product row from SELECTED PRODUCT ROW, keeping its bill ID and index.');
@@ -354,7 +355,7 @@ export async function POST(r: NextRequest) {
                             photos.map((photo) => photo.id),
                           )
                         : JSON.parse(call.arguments),
-                      { market, inspiration:inspiration&&!inspirationSaved,executionUpdate:executionUpdate&&!workUpdated,productSearch: products && !searchSaved, visuals: visuals && !visualSaved, materials: materialsAllowed && !billSaved, construction: requested.construction && !workSaved, layout: layout && !cadSaved, revisionSourceId: revision?.id },
+                      { market, inspiration:inspiration&&!inspirationSaved,executionUpdate:executionUpdate&&!workUpdated,productSearch: products && !searchSaved && !intent.clarify, visuals: visuals && !visualSaved, materials: materialsAllowed && !billSaved, construction: requested.construction && !workSaved, layout: layout && !cadSaved, revisionSourceId: revision?.id },
                     );
                     const artifact = result as {
                       id: string;
@@ -363,10 +364,10 @@ export async function POST(r: NextRequest) {
                     };
                     if(call.name==='open_inspiration_library')inspirationSaved=true;
                     if(call.name==='update_work_plan')workUpdated=true;
-                    if(call.name==='search_material_product')searchSaved=true;
+                    if(['search_material_product','search_new_product'].includes(call.name))searchSaved=true;
                     if(artifact.kind==='cad')cadSaved=true;
                     if(artifact.kind==='visual')visualSaved=true;
-                    if(artifact.kind==='estimate')billSaved=true;
+                    if(artifact.kind==='estimate'&&call.name==='create_material_estimate')billSaved=true;
                     if(artifact.kind==='construction'&&call.name==='create_construction_plan')workSaved=true;
                     if (artifact.kind === "cad") {
                       emit({

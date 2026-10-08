@@ -1,3 +1,4 @@
+import {addShoppingSelection} from './product-shopping';
 import { fetchProductImage } from "./product-images";
 import OpenAI from "openai";
 import { randomUUID } from "node:crypto";
@@ -195,6 +196,15 @@ export async function selectMaterialProduct(
   index: number,
   url: string,
 ) {
+  const found=await db.query("SELECT data,project_id FROM roomwise.artifacts WHERE id=$1 AND user_id=$2 AND kind='estimate'",[id,owner]);
+  const draft=found.rows[0]?.data;
+  if(draft?.shoppingDraft&&draft.targetEstimateId){
+    const target=await db.query("SELECT id FROM roomwise.artifacts WHERE id=$1 AND project_id=$2 AND user_id=$3 AND kind='estimate'",[draft.targetEstimateId,found.rows[0].project_id,owner]);
+    const source=draft.productComparisons?.[index]?.products?.find((p:PriceSource)=>p.url===url&&p.index===index);
+    if(!target.rows.length||!source||index!==0)throw new ProductSearchError('Choose a verified product for your existing room bill.');
+    await editMaterialBill(db,owner,draft.targetEstimateId,data=>addShoppingSelection(data,draft,id,source));
+    return editMaterialBill(db,owner,id,data=>({...data,priceSources:[source],addedToBill:true}));
+  }
   return editMaterialBill(db, owner, id, (data) => {
     const source = data.productComparisons?.[index]?.products?.find(
       (p: PriceSource) => p.url === url && p.index === index,
@@ -221,6 +231,7 @@ export async function selectMaterialProduct(
     const { items } = applyProductPacks(estimate, priceSources);
     return {
       ...data,
+      ...(data.shoppingDraft?{shoppingDraft:false}:{}),
       quantityItems,
       items,
       priceSources,

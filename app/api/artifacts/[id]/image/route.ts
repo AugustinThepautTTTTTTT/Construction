@@ -9,9 +9,9 @@ import { identity, sameOrigin, error } from "@/lib/server";
 import { database, rateLimit } from "@/lib/database";
 import { aiPolicy } from "@/lib/ai-budget";
 import {visualRequestedForArtifact} from "@/lib/project-intent";
-import { visualSchema } from "@/lib/room-artifacts";
 import {
   roomVisualPrompt,
+  parseVisualForRendering,
   ROOM_IMAGE_MODEL,
 } from "@/lib/room-visual";
 export const maxDuration = 300;
@@ -68,13 +68,7 @@ export async function POST(
     const policy = aiPolicy();
     if (!policy)
       return rejectQueued("Image generation is temporarily unavailable.");
-    const visual = visualSchema.parse({
-        title: a.data.title,
-        sourcePhotoId: a.data.sourcePhotoId,
-        brief: a.data.brief,
-        retain: a.data.retain,
-        changes: a.data.changes,
-      }),
+    const visual = parseVisualForRendering(a.data),
       photo = await db.query(
         "SELECT data FROM roomwise.photos WHERE id=$1 AND user_id=$2 AND project_id=$3",
         [visual.sourcePhotoId, user.id, a.project_id],

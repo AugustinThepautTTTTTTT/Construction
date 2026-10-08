@@ -1,9 +1,9 @@
 "use client";
-import "@/components/inspiration-library.css";
 import "./chat.css";
 import "@/components/project-workspace.css";
 import "@/components/chat-artifact.css";
 import "@/components/product-market.css";
+import "@/components/inspiration-library.css";
 import { Button } from "@base-ui-components/react/button";
 import dynamic from "next/dynamic";
 import type { ProjectTab, ProjectHighlight } from "@/components/project-panel";

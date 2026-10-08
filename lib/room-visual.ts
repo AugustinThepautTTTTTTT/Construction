@@ -1,5 +1,11 @@
 import type { RoomCad } from "./cad/model";
-import type { Visual } from "./room-artifacts";
+import {visualSchema,type Visual} from "./room-artifacts";
+import {inspirationProfile} from "./inspiration-library";
+export function parseVisualForRendering(data:any){
+ const visual=visualSchema.parse(Object.fromEntries(Object.keys(visualSchema.shape).map(key=>[key,data[key]])));
+ const ids=data.inspirationProfile?.references?.map((ref:any)=>ref.id);
+ return {...visual,...(Array.isArray(ids)&&ids.length?{inspirationProfile:inspirationProfile(ids)}:{})};
+}
 export const ROOM_IMAGE_MODEL = "gpt-image-2.5-sunburst";
 export const IMAGE_RESERVATION_CENTS = 50;
 export function roomVisualPrompt(visual: Visual, cad?:RoomCad, revision = false) {

@@ -57,3 +57,8 @@ test('a routing outage cannot open inspiration or update work and image prompts 
  const prompt=roomVisualPrompt({title:'Design',sourcePhotoId:'photo',brief:'Refresh',retain:['Original walls'],changes:['Colour'],inspirationProfile:profiles.inspirationProfile([profiles.INSPIRATIONS[0].id])} as any);
  assert.match(prompt,/bathroom-spa/);assert.match(prompt,/never permission to copy/);
 });
+test('saved image data is narrowed for rendering without dropping its validated reference profile',async()=>{
+ const {parseVisualForRendering}=await import('../lib/room-visual');
+ const saved={title:'Design',sourcePhotoId:crypto.randomUUID(),brief:'A warm room refresh',retain:['Walls'],changes:['Paint'],visualAuthorized:true,inspirationProfile:profiles.inspirationProfile([profiles.INSPIRATIONS[0].id])};
+ const visual=parseVisualForRendering(saved);assert.equal(visual.inspirationProfile!.references[0].id,'bathroom-spa');assert.equal('visualAuthorized' in visual,false);
+});

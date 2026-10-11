@@ -18,6 +18,10 @@ const editoSearchItems=[
 {title:"Bathroom renovation step by step",description:"Complete renovation workflow",url:"/en/guides/bathroom-renovation-step-by-step/",tags:"how to steps diy planning"},
 {title:"Best bathroom flooring",description:"Flooring materials compared",url:"/en/guides/best-bathroom-flooring/",tags:"floor tile vinyl stone"},
 {title:"Best small bathroom vanities",description:"Vanity sizes and storage",url:"/en/guides/best-small-bathroom-vanities/",tags:"vanity storage buying"},
+{title:"Kitchen renovation guide",description:"Kitchen remodeling layout, cabinets and work planning",url:"/en/kitchen-renovation/",tags:"kitchen renovation ideas layout"},
+{title:"AI kitchen design from a photo",description:"Redesign cabinets, colors and backsplash",url:"/en/ai-kitchen-design/",tags:"kitchen ai photo design"},
+{title:"Kitchen inspiration and ideas",description:"Explore modern kitchen looks and finishes",url:"/en/kitchen-inspiration/",tags:"kitchen inspiration makeover style"},
+{title:"Kitchen renovation cost guide",description:"Build a kitchen remodeling budget",url:"/en/guides/kitchen-renovation-cost/",tags:"kitchen cost price cabinets budget"},
 {title:"Walk-in shower vs bathtub",description:"Choosing the right shower or bath",url:"/en/guides/walk-in-shower-vs-bathtub/",tags:"shower bath comparison"}
 ];
 function Transformation(){

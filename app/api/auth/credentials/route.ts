@@ -73,7 +73,7 @@ export async function POST(r: NextRequest) {
     await creditAccount(db, user!.id);
     const session = await newSession(user!.id);
     return sessionCookie(
-      NextResponse.json({ authenticated: true, verificationSent }),
+      NextResponse.json({ authenticated: true }),
       session.token,
     );
   } catch (e) {

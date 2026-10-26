@@ -12,7 +12,7 @@ export async function POST(r:NextRequest){
  return await requestConfirmation(db,user.id)?NextResponse.json({sent:true}):error('Your confirmation email could not be sent. Please retry.');
 }
 export async function GET(r:NextRequest){
- const token=r.nextUrl.searchParams.get('token');const destination=new URL('/account?verified=1',r.url);
+ const token=r.nextUrl.searchParams.get('token');const destination=new URL('/chat',r.url);
  if(!token||!/^[a-f0-9]{64}$/.test(token))return NextResponse.redirect(new URL('/account?error=expired',r.url));
  const db=await database();if(!db)return error('Account confirmation is temporarily unavailable.');
  const c=await db.connect();let user;

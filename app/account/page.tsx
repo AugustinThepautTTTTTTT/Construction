@@ -25,7 +25,8 @@ export default function AccountPage() {
     [enabled, setEnabled] = useState(false),
     [mail, setMail] = useState(false),
     [google, setGoogle] = useState(false),
-    [account, setAccount] = useState<Account | null>(null);
+    [account, setAccount] = useState<Account | null>(null),
+    [pendingEmail, setPendingEmail] = useState("");
   const [reset, setReset] = useState(""),
     [next, setNext] = useState("/chat");
   async function refresh() {
@@ -87,7 +88,15 @@ export default function AccountPage() {
         setPassword("");
         setStatus("Password reset. Sign in with your new password.");
       } else {
-        await api("/api/auth/credentials", { mode, email, password, name });
+        const result = await api("/api/auth/credentials", { mode, email, password, name });
+        if (result.verificationRequired) {
+          setPassword("");
+          setPendingEmail(email);
+          setStatus(result.verificationSent
+            ? "We sent a confirmation link. Check your inbox and spam folder before signing in."
+            : "Your account was created, but we couldn't deliver the confirmation. Use Sign in with your password to retry.");
+          return;
+        }
         track(mode === "signup" ? "account_created" : "login_completed", { method: "password" });
         setPassword("");
         window.location.assign(next);
@@ -157,6 +166,7 @@ export default function AccountPage() {
                   aria-pressed={mode === "signup"}
                   onClick={() => {
                     setMode("signup");
+                    setPendingEmail("");
                     setStatus("");
                   }}
                 >
@@ -167,6 +177,7 @@ export default function AccountPage() {
                   aria-pressed={mode === "login"}
                   onClick={() => {
                     setMode("login");
+                    setPendingEmail("");
                     setStatus("");
                   }}
                 >
@@ -175,7 +186,8 @@ export default function AccountPage() {
               </div>
             )}
             {(mode === "signup" || mode === "login") && google && <a className="googleSignIn" href={`/api/auth/google?next=${encodeURIComponent(next)}`}><span>G</span> Continue with Google</a>}
-            <form onSubmit={submit}>
+            {pendingEmail && <div className="accountStatus" role="status"><strong>Check your email</strong><p>Confirm {pendingEmail} using the secure link before accessing your workspace.</p><button type="button" className="textLink" onClick={() => { setPendingEmail(""); setMode("login"); setStatus(""); }}>Sign in to resend confirmation</button></div>}
+            {!pendingEmail && <form onSubmit={submit}>
               {mode === "signup" && (
                 <>
                   <label htmlFor="name">Your name</label>
@@ -241,7 +253,7 @@ export default function AccountPage() {
                         : "Send recovery link"}
                 <ArrowRight />
               </button>
-            </form>
+            </form>}
             {mode === "login" && (
               <button
                 className="textLink"

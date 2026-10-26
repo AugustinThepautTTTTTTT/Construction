@@ -30,6 +30,7 @@ export async function identity(request: NextRequest) {
     [digest(token)],
   );
   const user = r.rows[0];
+  if (user?.email && !user.email_verified) return null;
   if (!user?.email) return user || null;
   const credits = await creditAccount(db, user.id);
   return {...user, plan:credits.plan, credits:credits.credits, subscription_status:credits.subscription_status};

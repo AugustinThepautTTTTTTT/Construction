@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {PGlite} from '@electric-sql/pglite';
 import {SCHEMA} from '../lib/repository';
-import {queueMail,flushMail} from '../lib/mail';
+import {queueMail,flushMail,transactionalHtml} from '../lib/mail';
 
 test('transactional emails retry failures, recover interrupted sends and do not repeat completed deliveries',async()=>{
  const before={EMAIL_FROM:process.env.EMAIL_FROM,RESEND_API_KEY:process.env.RESEND_API_KEY,SMTP_URL:process.env.SMTP_URL,NEXT_PUBLIC_APP_URL:process.env.NEXT_PUBLIC_APP_URL};
@@ -22,4 +22,19 @@ test('transactional emails retry failures, recover interrupted sends and do not 
  }finally{
   globalThis.fetch=originalFetch;for(const [key,value] of Object.entries(before)){if(value===undefined)delete process.env[key];else process.env[key]=value;}await db.close();
  }
+});
+
+test('branded mail safely escapes content and keeps secure actions on the configured domain',()=>{
+ const before=process.env.NEXT_PUBLIC_APP_URL;
+ try{
+  process.env.NEXT_PUBLIC_APP_URL='https://archicova.com';
+  const html=transactionalHtml('Reset your Archicova password','Reset here: https://archicova.com/account?reset=abc123\n<script>alert(1)</script>');
+  assert.match(html,/Archicova/);
+  assert.match(html,/Reset password/);
+  assert.match(html,/href="https:\/\/archicova.com\/account\?reset=abc123"/);
+  assert.doesNotMatch(html,/<script>alert/);
+  assert.match(html,/&lt;script&gt;/);
+  const unrelated=transactionalHtml('Reset your Archicova password','Visit https://not-archicova.example/account');
+  assert.doesNotMatch(unrelated,/display:inline-block;padding:15px 23px/);
+ }finally{if(before===undefined)delete process.env.NEXT_PUBLIC_APP_URL;else process.env.NEXT_PUBLIC_APP_URL=before;}
 });

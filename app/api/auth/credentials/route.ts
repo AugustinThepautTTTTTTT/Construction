@@ -13,6 +13,7 @@ import {
   identity,
   newSession,
   sessionCookie,
+  clearSession,
   sameOrigin,
   error,
   requestIp,
@@ -65,8 +66,11 @@ export async function POST(r: NextRequest) {
         digest(r.cookies.get("roomwise_session")?.value || ""),
       ]);
     await c.query("COMMIT");
+    if (mode === "signup" || !user!.email_verified) {
+      const verificationSent = await requestConfirmation(db,user!.id).catch(() => false);
+      return clearSession(NextResponse.json({ authenticated: false, verificationRequired: true, verificationSent }));
+    }
     await creditAccount(db, user!.id);
-    const verificationSent = mode === "signup" ? await requestConfirmation(db,user!.id).catch(() => false) : undefined;
     const session = await newSession(user!.id);
     return sessionCookie(
       NextResponse.json({ authenticated: true, verificationSent }),

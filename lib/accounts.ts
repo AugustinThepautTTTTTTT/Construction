@@ -33,7 +33,7 @@ export class AccountRepository {
   constructor(readonly db: Queryable) {}
   async credentials(email: string) {
     const r = await this.db.query(
-      "SELECT id,email,name,password_hash FROM roomwise.users WHERE email=$1",
+      "SELECT id,email,name,password_hash,email_verified FROM roomwise.users WHERE email=$1",
       [email],
     );
     return r.rows[0] || null;
@@ -98,7 +98,7 @@ export class AccountRepository {
     if (!r.rows[0]) return false;
     const id = r.rows[0].user_id;
     await this.db.query(
-      "UPDATE roomwise.users SET password_hash=$1,email_verified=true WHERE id=$2",
+      "UPDATE roomwise.users SET password_hash=$1 WHERE id=$2",
       [passwordHash, id],
     );
     await this.db.query("DELETE FROM roomwise.sessions WHERE user_id=$1", [id]);

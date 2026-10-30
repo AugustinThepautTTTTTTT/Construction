@@ -13,7 +13,7 @@ const serif = DM_Serif_Display({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: SITE.title, template: "%s | Archicova" },
+  title: { default: SITE.title, template: "%s" },
   applicationName: SITE.name,
   description: SITE.description,
   alternates: { canonical: "/" },

@@ -38,7 +38,7 @@ export async function runRoomTool(
     [projectId, owner],
   );
   if (!owned.rows.length) throw new Error("Room not found.");
-  if (["update_work_plan","search_new_product","search_material_product","update_room_cad","create_material_estimate","create_construction_plan"].includes(name)) await requirePaid(db, owner);
+  if (["update_work_plan","update_room_cad","create_material_estimate","create_construction_plan"].includes(name)) await requirePaid(db, owner);
   if(name==='open_inspiration_library'){
     const {room}=openInspirationSchema.parse(args);
     const found=await db.query("SELECT id FROM roomwise.artifacts WHERE project_id=$1 AND user_id=$2 AND kind='inspiration' ORDER BY created_at DESC LIMIT 1",[projectId,owner]);

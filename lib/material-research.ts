@@ -2,7 +2,7 @@ import {addShoppingSelection} from './product-shopping';
 import { fetchProductImage } from "./product-images";
 import OpenAI from "openai";
 import { randomUUID } from "node:crypto";
-import { debitCredits, refundCredits, requirePaid, CreditError } from "./credits";
+import { debitCredits, refundCredits, CreditError } from "./credits";
 import { z } from "zod";
 import type { Queryable } from "./repository";
 import { rateLimit } from "./database";
@@ -49,7 +49,6 @@ export async function searchMaterialProduct(
   preferences = "",
   requestedLocation?: {city:string;postalCode?:string},
 ): Promise<ProductComparison> {
-  await requirePaid(db, owner);
   const operation = `search:${randomUUID()}`;
   const estimate = estimateSchema.parse(
     Object.fromEntries(

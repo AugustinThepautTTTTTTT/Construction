@@ -76,6 +76,7 @@ export function skillTools(options?: {
   construction?: boolean;
 }) {
   return specs
+    .filter((s) => options?.paid !== false || !["search_new_product","search_material_product"].includes(s.name))
     .filter(
       (s) =>
         (options?.paid !== false || ["prepare_room_visual","open_inspiration_library","search_new_product","search_material_product"].includes(s.name)) &&

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { identity, error } from "@/lib/server";
 import { database } from "@/lib/database";
 import { materialWorkbook } from "@/lib/material-workbook";
+import {loadWorkspace} from "@/lib/renovation-workspace";
 export async function GET(
   r: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -13,7 +14,7 @@ export async function GET(
       db = await database(),
       { id } = await params;
     if (!user?.email || !db)
-      return error("Sign in to export this estimate.", 401);
+      return error("Sign in to export your shopping list.", 401);
     if (!z.string().uuid().safeParse(id).success)
       return error("Estimate not found.", 404);
     const result = await db.query(
@@ -22,12 +23,13 @@ export async function GET(
     );
     if (!result.rows.length) return error("Estimate not found.", 404);
     const row=result.rows[0],geometry=await projectGeometry(db,user.id,row.project_id);
-    const data=geometry?{...row.data,...geometry}:row.data;
+    const renovation=await loadWorkspace(db,user.id,row.project_id);
+    const data={...(geometry?{...row.data,...geometry}:row.data),workspace:renovation.state,estimateId:id};
     return new Response(await materialWorkbook(data), {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": 'attachment; filename="archicova-materials.xlsx"',
+        "Content-Disposition": 'attachment; filename="archicova-shopping-list.xlsx"',
         "Cache-Control": "private, no-store",
       },
     });

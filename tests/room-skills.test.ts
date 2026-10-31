@@ -174,7 +174,7 @@ test("Excel is a readable workbook with correct quantities, formulas, source lin
   await workbook.xlsx.load(
     (await materialWorkbook({ ...estimate, plan, priceSources: [{index: 1, price: 12, url: "https://www.leroymerlin.fr/produits/paint", title: "Paint", checkedAt: "2026-10-05", note: "Quoted provider price"}] })) as any,
   );
-  const sheet = workbook.getWorksheet("Bill of materials")!;
+  const sheet = workbook.getWorksheet("Shopping list")!;
   assert.equal(sheet.getCell("H5").value, 6);
   assert.equal(sheet.getCell("H6").value, 8);
   assert.deepEqual(sheet.getCell("L5").value, {

@@ -89,6 +89,7 @@ export function ProjectPanel({
     [notice, setNotice] = useState(""),
     [loading, setLoading] = useState(true),
     [cadEditing, setCadEditing] = useState(false);
+  const workspace = useRenovationWorkspace(projectId, signal);
   const seenHighlight = useRef(""),
     attempted = useRef(new Set<string>()),
     dirty = useRef(false),

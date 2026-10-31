@@ -59,10 +59,10 @@ export function FixtureMeasurements({controller,photos=[]}:{controller:Controlle
 }
 export function ShoppingOrganizer({controller,bill}:{controller:Controller;bill?:Artifact}){
  const {snapshot,change,saving}=controller;
+ const [group,setGroup]=useState("All");
  if(!bill)return null;
  const items=(bill.data.calculations?.items||[]) as Array<{item:string;index:number;quantity:number;unit:string;basis:string}>;
  const measured=!!bill.data.measurements?.confirmed && !bill.data.calculations?.provisional;
- const [group,setGroup]=useState("All");
  const stores=[...new Set(items.map(row=>snapshot.state.purchases[purchaseKey(bill.id,row.index)]?.store).filter(Boolean))] as string[];
  const groups=["All","To buy","Purchased","Already owned",...stores.map(store=>"Store: "+store)];
  const visible=items.filter(row=>{const p=snapshot.state.purchases[purchaseKey(bill.id,row.index)];return group==="All"||(group==="To buy"?!["purchased","owned"].includes(p?.status||""):(group==="Purchased"?p?.status==="purchased":group==="Already owned"?p?.status==="owned":p?.store===group.slice(7)));});

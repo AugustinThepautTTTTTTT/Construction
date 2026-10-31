@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import type {FormEvent} from "react";
 import {Button} from "@base-ui-components/react/button";
 import type {Artifact} from "@/lib/room-artifacts";
 
@@ -30,7 +31,7 @@ export function ProjectMeasurements({artifact,onChanged,onAsk}:{artifact?:Artifa
     setNotes(current?.notes||"");
   },[artifact?.id,JSON.stringify(current)]);
   const count=surfaces.filter(({key})=>Number(values[key])>0).length;
-  async function save(e:React.FormEvent){
+  async function save(e:FormEvent){
     e.preventDefault();
     if(!artifact)return;
     setSaving(true);setError("");

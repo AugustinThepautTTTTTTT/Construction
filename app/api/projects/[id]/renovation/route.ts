@@ -20,6 +20,7 @@ export async function PATCH(r:NextRequest,ctx:Context){
   const a=await auth(r,ctx);if(!a)return error("Project not found or sign-in required.",404);
   const payload=z.object({revision:z.number().int().min(0),change:changeSchema}).strict().safeParse(await r.json().catch(()=>null));
   if(!payload.success)return error("Invalid workspace update.",400);
+  if(payload.data.change.action==="measurement" && payload.data.change.value.photoId){const photo=await a.db.query("SELECT id FROM roomwise.photos WHERE id=$1 AND user_id=$2 AND project_id=$3",[payload.data.change.value.photoId,a.user.id,a.id]);if(!photo.rows.length)return error("Choose a photo from this project.",400);}
   const state=await changeWorkspace(a.db,a.user.id,a.id,payload.data.change,payload.data.revision);
   return NextResponse.json(state,{headers:{"Cache-Control":"private, no-store"}});
  }catch(e){const message=e instanceof Error?e.message:"Could not save the renovation workspace.";

@@ -5,9 +5,9 @@ export const measurement=z.object({id:z.string().uuid(),label:field,zone:z.strin
 export const decision=z.object({id:z.string().uuid(),label:field,details:z.string().max(1000),status:z.enum(["proposed","confirmed","rejected"]),element:z.string().max(120),updatedAt:z.string().max(60)}).strict();
 export const purchase=z.object({status:z.enum(["suggested","needs_measurements","ready","purchased","owned"]),store:z.string().max(100),actualCost:z.number().min(0).max(1000000).nullable(),notes:z.string().max(500)}).strict();
 export const downtime=z.object({fixture:z.enum(["wc","shower","basin","whole_room"]),description:z.string().max(300),durationHours:z.number().min(0).max(1000).nullable()}).strict();
-export const workspaceSchema=z.object({measurements:z.array(measurement).max(120),decisions:z.array(decision).max(120),purchases:z.record(z.string().max(100),purchase),downtime:z.record(z.string().max(100),downtime),keepRoomUsable:z.boolean()}).strict();
+export const workspaceSchema=z.object({measurements:z.array(measurement).max(120),decisions:z.array(decision).max(120),purchases:z.record(z.string().max(100),purchase),downtime:z.record(z.string().max(100),downtime),review:z.object({shopping:z.string().max(250).nullable(),construction:z.string().max(250).nullable()}).strict().default({shopping:null,construction:null}),keepRoomUsable:z.boolean()}).strict();
 export type Workspace=z.infer<typeof workspaceSchema>;
-export const emptyWorkspace:Workspace={measurements:[],decisions:[],purchases:{},downtime:{},keepRoomUsable:true};
+export const emptyWorkspace:Workspace={measurements:[],decisions:[],purchases:{},downtime:{},review:{shopping:null,construction:null},keepRoomUsable:true};
 export const changeSchema=z.discriminatedUnion("action",[
  z.object({action:z.literal("measurement"),value:measurement}).strict(),
  z.object({action:z.literal("remove_measurement"),id:z.string().uuid()}).strict(),
@@ -16,18 +16,20 @@ export const changeSchema=z.discriminatedUnion("action",[
  z.object({action:z.literal("purchase"),key:z.string().max(100).min(1),value:purchase}).strict(),
  z.object({action:z.literal("downtime"),key:z.string().max(100).min(1),value:downtime}).strict(),
  z.object({action:z.literal("usability"),value:z.boolean()}).strict(),
+ z.object({action:z.literal("acknowledge_review"),target:z.enum(["shopping","construction"])}).strict(),
  z.object({action:z.literal("undo")}).strict()
 ]);
 export type WorkspaceChange=z.infer<typeof changeSchema>;
 export function applyWorkspaceChange(state:Workspace,change:WorkspaceChange):Workspace {
  switch(change.action){
-  case "measurement":return {...state,measurements:[...state.measurements.filter(x=>x.id!==change.value.id),change.value]};
-  case "remove_measurement":return {...state,measurements:state.measurements.filter(x=>x.id!==change.id)};
-  case "decision":return {...state,decisions:[...state.decisions.filter(x=>x.id!==change.value.id),change.value]};
+  case "measurement":return {...state,measurements:[...state.measurements.filter(x=>x.id!==change.value.id),change.value],review:{shopping:"Site measurements changed — verify dimensions, quantities and product compatibility.",construction:"Site measurements changed — verify installation steps and clearances."}};
+  case "remove_measurement":return {...state,measurements:state.measurements.filter(x=>x.id!==change.id),review:{shopping:"A measurement was removed — confirm affected quantities.",construction:"A measurement was removed — verify work instructions."}};
+  case "decision":return {...state,decisions:[...state.decisions.filter(x=>x.id!==change.value.id),change.value],review:change.value.status==="confirmed"?{shopping:"A design decision was confirmed — review shopping requirements.",construction:"A design decision was confirmed — review work sequence and scope."}:state.review};
   case "remove_decision":return {...state,decisions:state.decisions.filter(x=>x.id!==change.id)};
   case "purchase":return {...state,purchases:{...state.purchases,[change.key]:change.value}};
   case "downtime":return {...state,downtime:{...state.downtime,[change.key]:change.value}};
-  case "usability":return {...state,keepRoomUsable:change.value};
+  case "usability":return {...state,keepRoomUsable:change.value,review:{...state.review,construction:"Room availability preferences changed — review fixture downtime."}};
+  case "acknowledge_review":return {...state,review:{...state.review,[change.target]:null}};
   case "undo":return state;
  }
 }

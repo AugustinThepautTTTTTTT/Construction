@@ -54,7 +54,8 @@ export async function changeWorkspace(db:Queryable,owner:string,projectId:string
  return saveWorkspace(db,owner,projectId,old,next,change);
 }
 async function saveWorkspace(db:Queryable,owner:string,projectId:string,old:{state:Workspace;revision:number},next:Workspace,change:WorkspaceChange){
- const result=await db.query(`INSERT INTO roomwise.renovation_workspaces(project_id,user_id,state,revision) SELECT id,user_id,$3::jsonb,1 FROM roomwise.projects WHERE id=$1 AND user_id=$2 AND $4=0 ON CONFLICT(project_id) DO UPDATE SET state=EXCLUDED.state,revision=roomwise.renovation_workspaces.revision+1,updated_at=now() WHERE roomwise.renovation_workspaces.user_id=$2 AND roomwise.renovation_workspaces.revision=$4 RETURNING revision`,[projectId,owner,JSON.stringify(next),old.revision]);
+ if(old.revision===0)await db.query("INSERT INTO roomwise.renovation_workspaces(project_id,user_id,state,revision) SELECT id,user_id,$3::jsonb,0 FROM roomwise.projects WHERE id=$1 AND user_id=$2 ON CONFLICT(project_id) DO NOTHING",[projectId,owner,JSON.stringify(old.state)]);
+ const result=await db.query("UPDATE roomwise.renovation_workspaces SET state=$3::jsonb,revision=revision+1,updated_at=now() WHERE project_id=$1 AND user_id=$2 AND revision=$4 RETURNING revision",[projectId,owner,JSON.stringify(next),old.revision]);
  if(!result.rows.length)throw new Error("Workspace changed. Refresh before saving.");
  const updated=Number(result.rows[0].revision);
  await db.query("INSERT INTO roomwise.renovation_workspace_events(project_id,user_id,revision,previous_state,change) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)",[projectId,owner,updated,JSON.stringify(old.state),JSON.stringify(change)]);

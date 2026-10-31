@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import type {Workspace} from "./renovation-workspace";
 import { materialPresentation } from "./material-presentation";
 import type { Artifact } from "./room-artifacts";
 import {
@@ -8,14 +9,14 @@ import {
   type PriceSource,
 } from "./room-artifacts";
 export async function materialWorkbook(
-  data: Estimate & { plan?: RoomPlan; priceSources?: PriceSource[];productComparisons?:Record<string,any>;shoppingChecked?:Record<string,boolean> },
+  data: Estimate & { plan?: RoomPlan; priceSources?: PriceSource[];productComparisons?:Record<string,any>;shoppingChecked?:Record<string,boolean>;workspace?:Workspace;estimateId?:string },
 ) {
   const calculated = calculateEstimate(data, data.plan || null),
     workbook = new ExcelJS.Workbook();
   const presentation=materialPresentation({data:{...data,calculations:calculated}} as Artifact);
   workbook.creator = "Archicova";
   workbook.created = new Date();
-  const sheet = workbook.addWorksheet("Bill of materials", {
+  const sheet = workbook.addWorksheet("Shopping list", {
     views: [{ state: "frozen", ySplit: 4 }],
   });
   sheet.addRow([data.title]);
@@ -141,7 +142,14 @@ export async function materialWorkbook(
     comparison.columns=[{header:"Bill item",width:30},{header:"Product",width:50},{header:"Pack price",width:18},{header:"Purchase unit",width:18},{header:"Link",width:60},{header:"Checked",width:25},{header:"Suitability / limitations",width:70},{header:"Selected",width:15}];
     for(const [index,options] of Object.entries(data.productComparisons))for(const product of options.products||[])comparison.addRow([data.items[Number(index)]?.item,product.title,product.price,product.purchaseUnit,{text:product.url,hyperlink:product.url},product.checkedAt,product.note,data.priceSources?.some(source=>source.index===Number(index)&&source.url===product.url)?"Yes":""]);
   }
-  const shopping=workbook.addWorksheet("Shopping checklist");shopping.columns=[{header:"Item",width:30},{header:"Quantity",width:15},{header:"Unit",width:15},{header:"Ready / owned",width:18},{header:"Product link",width:60}];
-  for(const row of presentation.rows)shopping.addRow([row.item,row.quantity,row.unit,data.shoppingChecked?.[row.index]?"Yes":"",row.source?{text:row.source.title,hyperlink:row.source.url}:"Allowance"]);
+  const shopping=workbook.addWorksheet("Shopping checklist");shopping.columns=[{header:"Item",width:30},{header:"Quantity",width:15},{header:"Unit",width:15},{header:"Status",width:22},{header:"Store",width:25},{header:"Actual cost",width:17},{header:"Product link",width:60}];
+  for(const row of presentation.rows){const purchase=data.workspace?.purchases[`${data.estimateId}:${row.index}`];shopping.addRow([row.item,row.quantity,row.unit,purchase?.status|| (data.shoppingChecked?.[row.index]?"Checked":"Not purchased"),purchase?.store||"",purchase?.actualCost??"",row.source?{text:row.source.title,hyperlink:row.source.url}:"Allowance"]);}
+  shopping.getColumn(6).numFmt="#,##0.00";
+  if(data.workspace){
+    const checks=workbook.addWorksheet("Site measurements");checks.columns=[{header:"Measurement",width:35},{header:"Zone",width:25},{header:"Value",width:18},{header:"Unit",width:12},{header:"Confidence",width:20},{header:"Notes",width:65}];
+    for(const m of data.workspace.measurements)checks.addRow([m.label,m.zone,m.value??"",m.unit,m.confidence,m.notes]);
+    const decisions=workbook.addWorksheet("Project decisions");decisions.columns=[{header:"Decision",width:45},{header:"Element",width:25},{header:"Status",width:18},{header:"Details",width:75}];
+    for(const d of data.workspace.decisions)decisions.addRow([d.label,d.element,d.status,d.details]);
+  }
   return new Uint8Array(await workbook.xlsx.writeBuffer());
 }

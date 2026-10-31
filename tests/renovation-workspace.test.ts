@@ -12,9 +12,9 @@ test("renovation state persists separately per owner with version checks and und
  await db.query("INSERT INTO roomwise.projects(id,user_id,title,brief) VALUES($1,$2,'Bathroom','{}'::jsonb)",[project,owner]);
  const initial=await loadWorkspace(db as any,owner,project);assert.equal(initial.revision,0);assert.deepEqual(initial.state.decisions,[]);
  const added=await changeWorkspace(db as any,owner,project,{action:"decision",value:{id:randomUUID(),label:"Keep original tiles",details:"Reduce demolition",status:"confirmed",element:"Walls",updatedAt:new Date().toISOString()}},0);
- assert.equal(added.revision,1);assert.equal(added.state.decisions[0].status,"confirmed");
+ assert.equal(added.revision,1);assert.equal(added.state.decisions[0].status,"confirmed");assert.ok(added.state.review.shopping);assert.ok(added.state.review.construction);
  const measure=await changeWorkspace(db as any,owner,project,{action:"measurement",value:{id:randomUUID(),label:"Shower opening",zone:"Shower",value:82,unit:"cm",confidence:"measured",notes:"At floor",photoId:null}},1);
- assert.equal(measure.revision,2);assert.equal(measure.state.measurements.length,1);
+ assert.equal(measure.revision,2);assert.equal(measure.state.measurements.length,1);assert.match(measure.state.review.shopping||"",/measurements changed/i);
  await assert.rejects(()=>changeWorkspace(db as any,owner,project,{action:"usability",value:false},1),/changed/);
  await assert.rejects(()=>changeWorkspace(db as any,other,project,{action:"usability",value:false},0),/not found/);
  assert.equal((await loadWorkspace(db as any,other,project)).revision,0);

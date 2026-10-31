@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Queryable } from "./repository";
 import { projectAssets } from "./project-assets";
+import { loadWorkspace } from "./renovation-workspace";
 export type ProjectFolder = {
   id: string;
   title: string;
@@ -56,12 +57,14 @@ export async function folderAssets(db: Queryable, owner: string, id: string) {
       [id, owner],
     )
   ).rows;
-  const feeds = await Promise.all(
-    chats.map((chat) => projectAssets(db, owner, chat.id)),
-  );
+  const [feeds, workspaces] = await Promise.all([
+    Promise.all(chats.map((chat) => projectAssets(db, owner, chat.id))),
+    Promise.all(chats.map((chat) => loadWorkspace(db, owner, chat.id))),
+  ]);
   return {
     folder,
     chats,
     artifacts: feeds.flatMap((feed) => feed?.artifacts || []),
+    workspaces: Object.fromEntries(chats.map((chat, i) => [chat.id, workspaces[i]])),
   };
 }

@@ -406,7 +406,7 @@ export function ProjectPanel({
             )}
           </div>
         ) : tab === "measurements" ? (
-          <><ProjectMeasurements artifact={bill} onChanged={load} onAsk={ask} /><FixtureMeasurements controller={workspace} /></>
+          <><ProjectMeasurements artifact={bill} onChanged={load} onAsk={ask} /><FixtureMeasurements controller={workspace} photos={assets.photos} /></>
         ) : tab === "decisions" ? (
           <RenovationDecisions controller={workspace}/>
         ) : tab === "schedule" ? (

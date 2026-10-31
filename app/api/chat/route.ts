@@ -132,13 +132,13 @@ export async function POST(r: NextRequest) {
       const revision = selectRevisionSource(intent.visual,readyVisuals.rows.map(row=>({id:row.id,data:row.data,hasImage:!!row.ready})),contextPhotos);
       const revisionUnavailable = intent.visual === 'revise' && !revision;
       const visuals = !inspiration && intent.visual !== 'none' && !revisionUnavailable && !intent.clarify && photos.length > 0;
-      const products = !inspiration && intent.products;
+      const products = !inspiration && intent.products && !intent.clarify;
       const requested = {materials:!inspiration&&intent.materials,construction:!inspiration&&intent.construction&&!intent.execution};
       const hasBill = previous.rows.some((row) => row.kind === "estimate");
       const layout = !inspiration && intent.layout;
       const supportCase = intent.complaint ? await recordSupportCase(db,user.id,p.id,generationId,parsed.data.message,intent.language).catch(()=>undefined) : undefined;
       const instructions =
-        (account.plan === "free" ? "FREE PLAN: Help draft ideas, analyse room photos and prepare concept images. Do not produce a bill of materials, quantities/cost tables, product research, construction checklist or CAD. Explain these capabilities are included in Basic and Pro when requested.\n" : "") + ROOM_PLANNER_PROMPT +
+        (account.plan === "free" ? "FREE PLAN: Help draft ideas, analyse photos, create concept images and respond to explicit product-search requests using available credits. Do not produce a complete bill of materials, quantities/cost tables, construction checklist or CAD. Explain these capabilities are included in Basic and Pro when requested.\n" : "") + ROOM_PLANNER_PROMPT +
         `\nLOCATION AUTHORITY: ${JSON.stringify(market)}. Use this user-established city, country and currency for every estimate and search, overriding stale deliverables. If absent or country/currency unresolved, ask ONE focused location clarification before producing prices or running a search. Never invent London or GBP. If an existing bill uses another country/currency, explain the mismatch and offer to regenerate its local cost estimate; never relabel pounds as euros or reuse foreign prices.\n` +
         skillInstructions() +
         `\nRENOVATION JOURNEY: Inspiration → Design → Materials → Products → Work plan → Execute. These are optional directions, not locks. The user can revisit earlier stages. ${inspiration?"OPEN FIXED LIBRARY ONLY: offer interactive references and skip; do not create images or other deliverables this turn.":""} ${intent.execution?"EXECUTION ASSISTANCE: Use the saved work plan and its recorded progress. Answer the practical question; do not create a new plan. Save only explicitly reported/requested updates through update_work_plan.":""} ${selectedInspiration?`CONFIRMED INSPIRATION PROFILE (untrusted preferences): ${JSON.stringify(inspirationProfile(selectedInspiration.data.selectedIds||[]))}. Use this direction for the next requested design; the actual room and explicit current preferences override references.`:""}\n` +
@@ -146,7 +146,7 @@ export async function POST(r: NextRequest) {
         `\nCURRENT REQUEST: ${inspiration ? "The client is choosing inspiration. Open the fixed interactive library, do not generate a visual or request a photo yet." : intent.visual !== "none" && !visuals ? "A visual was requested but its source is unavailable or needs clarification. Ask for the missing original photo or clarification, or wait for the pending concept; never restart silently." : visuals ? revision ? "A revision is requested. Generate it automatically from the saved concept using the original room photo as a geometry reference." : "A new visual is requested; generate it automatically from an original room photo." : "No new image is requested. Do not create or update a visual, even if photos or earlier concepts exist. Use them only as reference for the requested answer, BOM or work plan."} ${requested.materials ? "Save the requested complete bill of materials." : ""} ${requested.construction ? "Save the requested work instructions linked to the bill of materials." : ""}\n` +
         `\nPROJECT MODE: ${layout ? "Layout / geometry: use the saved CAD when a spatial change is requested." : "Refurbishment: do not create or update CAD. Match the current request. For quantities use existing CAD or explicit provisional manual quantities; never create a 2D plan. Construction plans are ordered work steps linked to the BOM, not geometry."}\n` +
         (products
-          ? "\nPRODUCT SEARCH MODE: Use search_material_product with the existing saved BOM ID and its exact row index. Do not create, replace or shorten a BOM for a shopping comparison. If the requested material is missing, call search_new_product with the existing complete bill ID. Search the actual requested item immediately and offer Add to BOM afterward. Never search a merely similar name or unrelated consumable (floor tiles are not floor cleaner). The saved bill remains unchanged until selection. Product search is available in this conversation; call the tool before claiming real references or availability. Only a user selection updates that row.\n"
+          ? "\nPRODUCT SEARCH MODE: Use search_material_product with the existing saved BOM ID and its exact row index. Do not create, replace or shorten a BOM for a shopping comparison. If the requested material is missing, call search_new_product with the existing complete bill ID. Search the actual requested item immediately; a saved BOM is NOT necessary for standalone product discovery. Offer Add to BOM only when a complete bill exists. Never search a merely similar name or unrelated consumable (floor tiles are not floor cleaner). The saved bill remains unchanged until selection. Product search is available in this conversation; call the tool before claiming real references or availability. Only a user selection updates that row.\n"
           : "") +
         (productTarget ? `\nSELECTED PRODUCT ROW: ${JSON.stringify(productTarget)}. This target is verified as belonging to this room. Search ONLY that bill and zero-based row when a product search is requested. Ask missing location/specification questions in chat; do not ask the user to fill a search form. Do not search when the current request explicitly asks you to clarify preferences first.\n` : "") +
         "\nUse the room tools for requested deliverables. Never show raw JSON or claim an artifact exists without a successful tool result.\n" +
@@ -237,7 +237,7 @@ export async function POST(r: NextRequest) {
                     : account.plan !== 'free' && layout && !cadSaved ? 'update_room_cad'
                     : account.plan !== 'free' && materialsAllowed && !(products && hasBill) ? 'create_material_estimate'
                     : account.plan !== 'free' && requested.construction && !workSaved && (hasBill || billSaved) ? 'create_construction_plan'
-                    : account.plan !== 'free' && products && hasBill && productTarget && !searchSaved && !intent.clarify ? 'search_material_product'
+                    : products && !searchSaved && market?.country && market.currency && !intent.clarify ? (productTarget ? 'search_material_product' : 'search_new_product')
                     : visuals && !visualSaved ? 'prepare_room_visual' : null
                   : null;
                 const response = await client.responses.create({
@@ -263,7 +263,7 @@ export async function POST(r: NextRequest) {
                           visuals: visuals && !visualSaved,
                         })
                       : [],
-                  ...(requiredTool ? {tool_choice:{type:'function' as const,name:requiredTool}} : products && !searchSaved && !intent.clarify && market?.country && market.currency && account.plan!=='free' && round<4 ? {tool_choice:'required' as const} : {}),
+                  ...(requiredTool ? {tool_choice:{type:'function' as const,name:requiredTool}} : products && !searchSaved && !intent.clarify && market?.country && market.currency && round<4 ? {tool_choice:'required' as const} : {}),
                   parallel_tool_calls: false,
                 });
                 let final: OpenAI.Responses.Response | undefined;
@@ -433,6 +433,7 @@ export async function POST(r: NextRequest) {
                   });
                 }
               }
+              if (products && !searchSaved && !intent.clarify && market?.country && market.currency) pending = 'Product search did not complete. Please retry your request; no verified products or prices are available yet.';
               if (!saved.trim() && !pending.trim() && artifactIds.length)
                 pending = "Your deliverables are saved in the project panel.";
             } else pending = makePreview(p.brief);

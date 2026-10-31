@@ -6,6 +6,7 @@ import { Button } from "@base-ui-components/react/button";
 import {
   Box,
   ClipboardList,
+  Ruler,
   Camera,
   FolderOpen,
   Image as ImageIcon,
@@ -20,12 +21,13 @@ import type { Artifact } from "@/lib/room-artifacts";
 import { ProjectVisualGallery } from "./project-visual-gallery";
 import { ConstructionPlanView } from "./construction-plan";
 import { ProjectMaterials } from "./project-materials";
+import { ProjectMeasurements } from "./project-measurements";
 const CadStudio = dynamic(
   () => import("./cad/studio").then((m) => m.CadStudio),
   { ssr: false },
 );
 export type ProjectHighlight = { id: string; version: number } | null;
-export type ProjectTab = "visuals" | "materials" | "layout" | "construction";
+export type ProjectTab = "visuals" | "materials" | "measurements" | "layout" | "construction";
 type Assets = {
   project?: { title: string };
   artifacts: Artifact[];
@@ -309,7 +311,11 @@ export function ProjectPanel({
             onClick={() => choose("materials")}
           >
             <ClipboardList size={15} />
-            Materials
+            Shopping List
+          </Button>
+          <Button aria-pressed={tab === "measurements"} onClick={() => choose("measurements")}>
+            <Ruler size={15} />
+            Measurements
           </Button>
           <Button
             aria-pressed={tab === "construction"}
@@ -390,10 +396,12 @@ export function ProjectPanel({
               </details>
             )}
           </div>
+        ) : tab === "measurements" ? (
+          <ProjectMeasurements artifact={bill} onChanged={load} onAsk={ask} />
         ) : tab === "materials" ? (
           <div className="projectMaterialFolder">
             <div className="projectSectionIntro">
-              <small>MATERIALS & QUANTITIES</small>
+              <small>SHOPPING LIST & QUANTITIES</small>
               <h2>Your shopping plan.</h2>
               <p>
                 Review each part of the job. Compare products only when you want
@@ -439,17 +447,17 @@ export function ProjectPanel({
                 <ClipboardList size={28} />
                 <h3>From design to supplies.</h3>
                 <p>
-                  A complete bill includes finishes, preparation, tools and
+                  A complete shopping list includes finishes, preparation, tools and
                   quantities. Product research is optional.
                 </p>
                 <Button
                   onClick={() =>
                     ask(
-                      "Build a complete bill of materials for my chosen design, including preparation, tools, consumables and quantities. Estimate costs without web search and state the provisional surface measurements.",
+                      "Build a complete shopping list for my chosen design, including preparation, tools, consumables and quantities. Estimate costs without web search and state the provisional surface measurements.",
                     )
                   }
                 >
-                  Prepare my bill
+                  Prepare my shopping list
                 </Button>
               </div>
             )}
@@ -499,12 +507,12 @@ export function ProjectPanel({
                 <h3>A clear route to the result.</h3>
                 <p>
                   Preparation, application, drying and checks, with every supply
-                  linked to your bill.
+                  linked to your shopping list.
                 </p>
                 <Button
                   onClick={() =>
                     ask(
-                      "Create a detailed construction plan linked to my complete bill of materials. Include preparation, tools, drying times and completion checks. Complete any missing supplies in the BOM first, without web research.",
+                      "Create a detailed construction plan linked to my complete shopping list. Include preparation, tools, drying times and completion checks. Complete any missing supplies in the shopping list first, without web research.",
                     )
                   }
                 >

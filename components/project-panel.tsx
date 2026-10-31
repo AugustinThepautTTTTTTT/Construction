@@ -7,6 +7,8 @@ import {
   Box,
   ClipboardList,
   Ruler,
+  ListChecks,
+  CalendarClock,
   Camera,
   FolderOpen,
   Image as ImageIcon,
@@ -22,12 +24,13 @@ import { ProjectVisualGallery } from "./project-visual-gallery";
 import { ConstructionPlanView } from "./construction-plan";
 import { ProjectMaterials } from "./project-materials";
 import { ProjectMeasurements } from "./project-measurements";
+import {useRenovationWorkspace,RenovationDecisions,FixtureMeasurements,ShoppingOrganizer,DowntimePlanner} from "./renovation-workspace";
 const CadStudio = dynamic(
   () => import("./cad/studio").then((m) => m.CadStudio),
   { ssr: false },
 );
 export type ProjectHighlight = { id: string; version: number } | null;
-export type ProjectTab = "visuals" | "materials" | "measurements" | "layout" | "construction";
+export type ProjectTab = "visuals" | "materials" | "measurements" | "layout" | "construction" | "decisions" | "schedule";
 type Assets = {
   project?: { title: string };
   artifacts: Artifact[];
@@ -317,6 +320,12 @@ export function ProjectPanel({
             <Ruler size={15} />
             Measurements
           </Button>
+          <Button aria-pressed={tab === "decisions"} onClick={() => choose("decisions")}>
+            <ListChecks size={15} /> Decisions
+          </Button>
+          <Button aria-pressed={tab === "schedule"} onClick={() => choose("schedule")}>
+            <CalendarClock size={15} /> Schedule
+          </Button>
           <Button
             aria-pressed={tab === "construction"}
             onClick={() => choose("construction")}
@@ -397,7 +406,11 @@ export function ProjectPanel({
             )}
           </div>
         ) : tab === "measurements" ? (
-          <ProjectMeasurements artifact={bill} onChanged={load} onAsk={ask} />
+          <><ProjectMeasurements artifact={bill} onChanged={load} onAsk={ask} /><FixtureMeasurements controller={workspace} /></>
+        ) : tab === "decisions" ? (
+          <RenovationDecisions controller={workspace}/>
+        ) : tab === "schedule" ? (
+          <DowntimePlanner controller={workspace} work={work}/>
         ) : tab === "materials" ? (
           <div className="projectMaterialFolder">
             <div className="projectSectionIntro">
@@ -428,7 +441,7 @@ export function ProjectPanel({
               </label>
             )}
             {bill ? (
-              <ProjectMaterials
+              <><ShoppingOrganizer controller={workspace} bill={bill}/><ProjectMaterials
                 onRequest={onRequest}
                 key={bill.id}
                 artifact={bill}
@@ -441,7 +454,7 @@ export function ProjectPanel({
                 }}
                 onChanged={load}
                 unlocked={unlocked}
-              />
+              /></>
             ) : (
               <div className="projectFolderEmpty">
                 <ClipboardList size={28} />
